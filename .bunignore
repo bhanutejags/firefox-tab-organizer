@@ -1,0 +1,26 @@
+# Files to ignore for Bun operations
+
+# Source files (we want the built versions)
+src/
+
+# Build artifacts
+dist/
+
+# Git
+.git/
+.github/
+
+# Documentation
+*.md
+PLAN.md
+README.md
+
+# Config files
+.bunignore
+.gitignore
+tsconfig.json
+manifest.json
+
+# Temporary files
+*.tmp
+*.log

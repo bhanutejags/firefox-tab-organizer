@@ -4,6 +4,9 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Bun (binary lockfile - deprecated, we use text format now)
+bun.lockb
+
 # Build output
 dist/
 build/

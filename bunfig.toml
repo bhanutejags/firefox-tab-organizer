@@ -1,0 +1,14 @@
+# Bun configuration
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# Use text-based lockfile instead of binary
+# https://bun.sh/docs/pm/lockfile
+lockfile = "bun.lock"
+
+# Use exact versions for reproducible builds
+exact = true
+
+[install.cache]
+# Disable network cache for reproducible builds
+disable = false

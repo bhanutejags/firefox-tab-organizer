@@ -1,0 +1,46 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run type-check
+
+      - name: Build extension
+        run: bun run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-tab-organizer-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+      - name: Create extension package
+        run: bun run package
+
+      - name: Upload extension package
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-tab-organizer-${{ github.sha }}.xpi
+          path: firefox-tab-organizer.xpi
+          retention-days: 7

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Groups Organizer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🗂️ Tab Groups Organizer</h1>
+    </header>
+
+    <main>
+      <div class="form-group">
+        <label for="prompt-input">Guide the AI (optional):</label>
+        <input
+          type="text"
+          id="prompt-input"
+          placeholder='e.g., "organize by project"'
+        />
+      </div>
+
+      <button id="organize-button" class="primary-button">
+        🪄 Organize Tabs
+      </button>
+
+      <div id="status" class="status-message"></div>
+
+      <div class="info">
+        <span id="tab-count">Loading...</span>
+      </div>
+    </main>
+
+    <footer>
+      <a href="#" id="settings-link">⚙️ Settings</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
