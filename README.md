@@ -5,7 +5,7 @@ AI-powered Firefox WebExtension that automatically organizes open tabs into Tab 
 ## 🎯 Features
 
 - **AI-Powered Categorization**: Automatically groups tabs by topic, project, or domain similarity
-- **Multiple LLM Providers**: Support for AWS Bedrock, Claude API, OpenAI, and local Ollama
+- **Multiple LLM Providers**: Support for AWS Bedrock, Claude API, and OpenAI
 - **TypeScript**: Fully typed codebase with strict type checking
 - **Provider-Agnostic**: Easy to switch between LLM providers
 - **Custom Prompts**: Optional user guidance for organization (e.g., "organize by project")
@@ -13,14 +13,15 @@ AI-powered Firefox WebExtension that automatically organizes open tabs into Tab 
 
 ## 🚀 Tech Stack
 
+- **Runtime & Build**: Bun (native TypeScript bundler)
 - **Language**: TypeScript (strict mode)
-- **Build Tool**: Webpack + ts-loader
+- **Code Quality**: Biome (linter + formatter)
 - **Browser API**: webextension-polyfill
 - **LLM Integration**: [Vercel AI SDK](https://ai-sdk.dev/)
 
 ## 📋 Implementation Status
 
-🔄 **Status**: Planning Phase
+🔄 **Status**: Project Setup Complete
 
 See [PLAN.md](./PLAN.md) for the complete implementation plan.
 
@@ -52,8 +53,10 @@ firefox-tab-organizer/
 ## 📚 Documentation
 
 - [Implementation Plan](./PLAN.md) - Detailed technical plan and architecture
+- [Development Guide](./CLAUDE.md) - Developer guidelines and best practices
 - [Vercel AI SDK](https://ai-sdk.dev/docs/foundations/overview) - LLM abstraction library
 - [Firefox Tab Groups API](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/group) - Browser API reference
+- [MDN WebExtensions Examples](https://github.com/mdn/webextensions-examples) - Official Firefox extension examples
 
 ## 📝 License
 
