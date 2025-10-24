@@ -1,8 +1,38 @@
 # Firefox Tab Groups Organizer - Implementation Plan
 
+## 📊 Implementation Status
+
+**Current Phase:** Project Setup Complete ✅
+
+### Completed
+
+- ✅ Project structure with Bun build system
+- ✅ TypeScript configuration (strict mode)
+- ✅ GitHub Actions CI/CD workflows
+- ✅ Abstract LLM provider architecture
+- ✅ Basic UI (popup and options pages)
+- ✅ Biome linter/formatter setup
+- ✅ Development documentation (CLAUDE.md)
+
+### In Progress
+
+- 🔄 LLM provider implementations (Claude, Bedrock, OpenAI)
+- 🔄 Tab capture and grouping logic
+- 🔄 Provider configuration UI
+
+### Next Steps
+
+1. Implement concrete LLM providers with Vercel AI SDK
+2. Build tab organization logic in background script
+3. Complete options page with dynamic config
+4. Add error handling and user feedback
+5. Testing with real Firefox tab groups
+
+---
+
 ## 🎯 Project Summary
 
-TypeScript-based Firefox WebExtension that uses LLM intelligence to organize open tabs into Tab Groups. Uses **Vercel AI SDK** for provider-agnostic LLM integration, supporting AWS Bedrock, Claude API, OpenAI, and local Ollama.
+TypeScript-based Firefox WebExtension that uses LLM intelligence to organize open tabs into Tab Groups. Uses **Vercel AI SDK** for provider-agnostic LLM integration, supporting AWS Bedrock, Claude API, and OpenAI.
 
 ---
 
@@ -10,8 +40,11 @@ TypeScript-based Firefox WebExtension that uses LLM intelligence to organize ope
 
 ### Tech Stack
 
+- **Runtime & Build Tool:** Bun (replaces Node.js + Webpack)
+  - Built-in TypeScript compiler
+  - Built-in bundler (Bun.build API)
+  - Fast package manager with text-based lockfile
 - **Language:** TypeScript (strict mode)
-- **Build Tool:** Webpack + ts-loader
 - **Browser API:** webextension-polyfill
 - **LLM Abstraction:** **Vercel AI SDK** (`ai` package)
   - 📚 [AI SDK Documentation](https://ai-sdk.dev/docs/foundations/overview)
@@ -24,6 +57,13 @@ TypeScript-based Firefox WebExtension that uses LLM intelligence to organize ope
 - **Factory Pattern:** `createProvider()` for runtime instantiation
 - **Unified API:** All providers use AI SDK's `generateText()` interface
 - **Type Safety:** Full TypeScript coverage with strict checks
+
+### Why Bun?
+
+1. **No webpack config needed** - Bun bundles TypeScript natively
+2. **Faster builds** - Native bundler is significantly faster
+3. **Simpler toolchain** - One tool replaces Node.js + npm + webpack + ts-node
+4. **Direct TypeScript execution** - Run `bun build.ts` directly
 
 ---
 

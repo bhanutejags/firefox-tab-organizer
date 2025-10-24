@@ -91,6 +91,26 @@ bun run build
 bun run start
 ```
 
+### Code Quality
+
+```bash
+# Lint code
+bun run lint
+
+# Lint and auto-fix
+bun run lint:fix
+
+# Format code
+bun run format
+```
+
+**Using Biome (Bun-native linter/formatter):**
+
+- 10-100x faster than ESLint + Prettier
+- Single tool for linting AND formatting
+- Written in Rust, zero Node.js dependencies
+- Configuration in `biome.json`
+
 ### Building for Production
 
 ```bash
@@ -210,6 +230,7 @@ Factory pattern for runtime provider selection based on user config.
 
 ### Development
 
+- `@biomejs/biome`: Fast linter & formatter (Rust-based)
 - `typescript`: Type checking
 - `@types/webextension-polyfill`: Type definitions
 - `web-ext`: Firefox extension tooling

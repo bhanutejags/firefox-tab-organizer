@@ -11,11 +11,11 @@ import type {
 } from "../types";
 
 export class ClaudeProvider extends LLMProvider {
-  private config: ClaudeConfig;
+  private _config: ClaudeConfig;
 
   constructor(config: ClaudeConfig) {
     super();
-    this.config = config;
+    this._config = config;
   }
 
   async categorize(

@@ -20,10 +20,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const response = await browser.runtime.sendMessage({
+        const response = (await browser.runtime.sendMessage({
           action: "organizeTabs",
           userPrompt,
-        });
+        })) as { success: boolean; message?: string; error?: string };
 
         if (statusDiv) {
           if (response.success) {

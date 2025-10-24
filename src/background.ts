@@ -7,8 +7,8 @@ import browser from "webextension-polyfill";
 console.log("Firefox Tab Organizer background script loaded");
 
 // Listen for messages from popup/options
-browser.runtime.onMessage.addListener((message, sender) => {
-  console.log("Received message:", message, "from:", sender);
+browser.runtime.onMessage.addListener((message: any, _sender: any) => {
+  console.log("Received message:", message, "from:", _sender);
 
   if (message.action === "organizeTabs") {
     return organizeTabsWithAI(message.userPrompt);
@@ -17,7 +17,11 @@ browser.runtime.onMessage.addListener((message, sender) => {
   return Promise.resolve({ success: false, error: "Unknown action" });
 });
 
-async function organizeTabsWithAI(userPrompt?: string): Promise<any> {
+async function organizeTabsWithAI(userPrompt?: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
   try {
     console.log("Organizing tabs with prompt:", userPrompt);
 
