@@ -11,7 +11,7 @@
     "build:assets": "cp manifest.json dist/ && cp -r src/popup/*.html src/popup/*.css dist/ 2>/dev/null || true && cp -r src/options/*.html src/options/*.css dist/ 2>/dev/null || true && mkdir -p dist/icons && cp src/icons/*.png dist/icons/ 2>/dev/null || true",
     "dev": "bun --watch build.ts",
     "start": "bun run build && web-ext run -s dist/ --browser-console",
-    "package": "bun run build && cd dist && zip -r ../firefox-tab-organizer.xpi .",
+    "package": "bun run build && cd dist && zip -r firefox-tab-organizer.xpi .",
     "type-check": "tsc --noEmit",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",

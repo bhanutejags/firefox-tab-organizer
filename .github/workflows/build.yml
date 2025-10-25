@@ -42,5 +42,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: firefox-tab-organizer-${{ github.sha }}.xpi
-          path: firefox-tab-organizer.xpi
+          path: dist/firefox-tab-organizer.xpi
           retention-days: 7
