@@ -12,7 +12,6 @@ dist/
 
 # Documentation
 *.md
-PLAN.md
 README.md
 
 # Config files

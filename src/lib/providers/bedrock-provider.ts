@@ -5,12 +5,7 @@
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { type LanguageModelV1, generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
-import type {
-  BedrockConfig,
-  ConfigSchema,
-  GroupingResult,
-  TabData,
-} from "../types";
+import type { BedrockConfig, ConfigSchema, GroupingResult, TabData } from "../types";
 
 export class BedrockProvider extends LLMProvider {
   private _config: BedrockConfig;
@@ -96,10 +91,7 @@ Remember: Return ONLY the JSON object, no markdown, no explanation, no code bloc
     throw new Error("Unexpected Bedrock API response format");
   }
 
-  async categorize(
-    tabs: TabData[],
-    userPrompt?: string,
-  ): Promise<GroupingResult> {
+  async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
     const prompt = this.buildPrompt(tabs, userPrompt);
 
     let text: string;
@@ -135,10 +127,7 @@ Remember: Return ONLY the JSON object, no markdown, no explanation, no code bloc
     try {
       if (this._config.bearerToken) {
         // Test bearer token
-        await this.callBedrockWithBearerToken(
-          "You are a test assistant.",
-          "Hi",
-        );
+        await this.callBedrockWithBearerToken("You are a test assistant.", "Hi");
       } else {
         // Test AWS credentials
         const model = this.getModel();
@@ -192,13 +181,7 @@ Remember: Return ONLY the JSON object, no markdown, no explanation, no code bloc
         label: "AWS Region",
         required: true,
         default: "us-east-1",
-        options: [
-          "us-east-1",
-          "us-west-2",
-          "us-east-2",
-          "eu-west-1",
-          "ap-southeast-1",
-        ],
+        options: ["us-east-1", "us-west-2", "us-east-2", "eu-west-1", "ap-southeast-1"],
       },
       modelId: {
         type: "select",

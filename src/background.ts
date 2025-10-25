@@ -3,17 +3,30 @@
  */
 
 import browser from "webextension-polyfill";
+import type { Runtime } from "webextension-polyfill";
 import { createProvider } from "./lib/provider-registry";
 import type { ExtensionStorage, GroupingResult, TabData } from "./lib/types";
+
+// Message types for extension communication
+interface OrganizeTabsMessage {
+  action: "organizeTabs";
+  userPrompt?: string;
+}
+
+type ExtensionMessage = OrganizeTabsMessage;
 
 console.log("Firefox Tab Organizer background script loaded");
 
 // Listen for messages from popup/options
-browser.runtime.onMessage.addListener((message: any, _sender: any) => {
+browser.runtime.onMessage.addListener((message: unknown, _sender: Runtime.MessageSender) => {
   console.log("Received message:", message, "from:", _sender);
 
-  if (message.action === "organizeTabs") {
-    return organizeTabsWithAI(message.userPrompt);
+  // Type guard for extension messages
+  if (typeof message === "object" && message !== null && "action" in message) {
+    const typedMessage = message as ExtensionMessage;
+    if (typedMessage.action === "organizeTabs") {
+      return organizeTabsWithAI(typedMessage.userPrompt);
+    }
   }
 
   return Promise.resolve({ success: false, error: "Unknown action" });
@@ -44,17 +57,18 @@ async function organizeTabsWithAI(userPrompt?: string): Promise<{
     const tabs = await browser.tabs.query({ currentWindow: true });
     const tabData: TabData[] = tabs
       .filter(
-        (tab) =>
+        (tab): tab is typeof tab & { id: number; url: string } =>
           !tab.pinned &&
-          tab.url &&
+          tab.id !== undefined &&
+          tab.url !== undefined &&
           !tab.url.startsWith("about:") &&
           !tab.url.startsWith("moz-extension:"),
       )
       .map((tab) => ({
-        id: tab.id!,
+        id: tab.id,
         index: tab.index,
         title: tab.title || "Untitled",
-        url: tab.url!,
+        url: tab.url,
         favIconUrl: tab.favIconUrl,
         active: tab.active,
         pinned: tab.pinned,

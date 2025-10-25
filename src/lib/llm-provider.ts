@@ -8,10 +8,7 @@ export abstract class LLMProvider {
   /**
    * Categorize tabs into groups using LLM
    */
-  abstract categorize(
-    tabs: TabData[],
-    userPrompt?: string,
-  ): Promise<GroupingResult>;
+  abstract categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult>;
 
   /**
    * Test if credentials are valid
@@ -74,13 +71,13 @@ Required JSON structure:
   private extractJSON(response: string): string {
     // Try to extract JSON from markdown code blocks
     const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (jsonMatch) {
+    if (jsonMatch?.[1]) {
       return jsonMatch[1];
     }
 
     // Look for JSON object in the response
     const objectMatch = response.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
+    if (objectMatch?.[0]) {
       return objectMatch[0];
     }
 

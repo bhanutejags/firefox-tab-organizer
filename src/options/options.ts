@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         const config = collectProviderConfig();
+        // biome-ignore lint/suspicious/noExplicitAny: Config is collected dynamically from form fields
         const provider = createProvider(currentProvider, config as any);
         const isConnected = await provider.testConnection();
 
@@ -144,13 +145,15 @@ function renderProviderConfig(
 
   // Get provider info
   const providerInfo = PROVIDERS[providerType];
-  const provider = new providerInfo.class({} as any); // Temporary instance
+  // biome-ignore lint/suspicious/noExplicitAny: Temporary instance just for schema retrieval
+  const provider = new providerInfo.class({} as any);
   const schema = provider.getConfigSchema();
 
   // Clear existing config
   configDiv.innerHTML = "";
 
   // Get saved config for this provider
+  // biome-ignore lint/suspicious/noExplicitAny: Saved config structure is provider-specific and dynamic
   const savedConfig = savedConfigs?.[providerType] as Record<string, any> | undefined;
 
   // Generate form fields from schema
@@ -213,10 +216,12 @@ function renderProviderConfig(
   }
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Form data is collected dynamically and provider-specific
 function collectProviderConfig(): Record<string, any> {
   const configDiv = document.getElementById("provider-config");
   if (!configDiv) return {};
 
+  // biome-ignore lint/suspicious/noExplicitAny: Form data structure depends on provider schema
   const config: Record<string, any> = {};
   const inputs = Array.from(
     configDiv.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select"),

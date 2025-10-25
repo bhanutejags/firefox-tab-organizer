@@ -10,7 +10,10 @@ import type { ProviderConfig, ProviderType } from "./types";
 
 interface ProviderInfo {
   name: string;
-  class: new (config: any) => LLMProvider;
+  class: new (
+    // biome-ignore lint/suspicious/noExplicitAny: Constructor needs to accept different config types at runtime
+    config: any,
+  ) => LLMProvider;
   description: string;
   icon: string;
 }
