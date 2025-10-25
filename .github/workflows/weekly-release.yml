@@ -1,0 +1,119 @@
+name: Weekly Release
+
+on:
+  schedule:
+    # Runs every Sunday at 00:00 UTC
+    - cron: "0 0 * * 0"
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for commit comparison
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check for commits since last release
+        id: check_commits
+        run: |
+          # Get the latest release tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tags found, will create first release"
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "commit_count=initial" >> $GITHUB_OUTPUT
+          else
+            # Count commits since last tag
+            COMMIT_COUNT=$(git rev-list ${LATEST_TAG}..HEAD --count)
+            echo "Commits since ${LATEST_TAG}: ${COMMIT_COUNT}"
+
+            if [ "$COMMIT_COUNT" -gt 0 ]; then
+              echo "has_commits=true" >> $GITHUB_OUTPUT
+              echo "commit_count=${COMMIT_COUNT}" >> $GITHUB_OUTPUT
+              echo "last_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+            else
+              echo "has_commits=false" >> $GITHUB_OUTPUT
+              echo "No new commits since last release"
+            fi
+          fi
+
+      - name: Install dependencies
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: bun run type-check
+
+      - name: Lint check
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: bun run lint
+
+      - name: Build extension
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: bun run build
+
+      - name: Bump version and update manifest
+        if: steps.check_commits.outputs.has_commits == 'true'
+        id: version
+        run: |
+          # Bump version in package.json using bun
+          bun pm version patch --no-git-tag-version
+
+          # Get the new version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "New version: ${NEW_VERSION}"
+
+          # Update manifest.json version
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            manifest.version = '${NEW_VERSION}';
+            fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+
+          echo "Updated manifest.json to version ${NEW_VERSION}"
+
+      - name: Commit version bump
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: |
+          git add package.json manifest.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+
+      - name: Create and push tag
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: |
+          git tag "v${{ steps.version.outputs.new_version }}"
+          git push origin main
+          git push origin "v${{ steps.version.outputs.new_version }}"
+
+      - name: Summary
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: |
+          echo "✅ Created release v${{ steps.version.outputs.new_version }}"
+          echo "📦 Commits included: ${{ steps.check_commits.outputs.commit_count }}"
+          echo "🎉 Release workflow will be triggered automatically"
+
+      - name: No release needed
+        if: steps.check_commits.outputs.has_commits != 'true'
+        run: |
+          echo "ℹ️ No new commits since last release"
+          echo "⏭️ Skipping release creation"
