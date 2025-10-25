@@ -6,11 +6,11 @@ import browser from "webextension-polyfill";
 
 document.addEventListener("DOMContentLoaded", () => {
   const organizeButton = document.getElementById("organize-button");
-  const promptInput = document.getElementById(
-    "prompt-input",
-  ) as HTMLInputElement;
+  const promptInput = document.getElementById("prompt-input") as HTMLInputElement;
   const statusDiv = document.getElementById("status");
+  const settingsLink = document.getElementById("settings-link");
 
+  // Handle organize button
   if (organizeButton) {
     organizeButton.addEventListener("click", async () => {
       const userPrompt = promptInput?.value?.trim() || "";
@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (statusDiv) {
           if (response.success) {
-            statusDiv.textContent = "✓ Tabs organized!";
+            statusDiv.textContent = `✓ ${response.message || "Tabs organized!"}`;
           } else {
             statusDiv.textContent = `✗ Error: ${response.error || response.message}`;
           }
@@ -38,6 +38,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         console.error("Failed to organize tabs:", error);
       }
+    });
+  }
+
+  // Handle settings link
+  if (settingsLink) {
+    settingsLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      browser.runtime.openOptionsPage();
     });
   }
 

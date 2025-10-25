@@ -2,9 +2,11 @@
  * Provider registry and factory
  */
 
-import { LLMProvider } from "./llm-provider";
-import type { ProviderType, ProviderConfig } from "./types";
+import type { LLMProvider } from "./llm-provider";
+import { BedrockProvider } from "./providers/bedrock-provider";
 import { ClaudeProvider } from "./providers/claude-provider";
+import { OpenAIProvider } from "./providers/openai-provider";
+import type { ProviderConfig, ProviderType } from "./types";
 
 interface ProviderInfo {
   name: string;
@@ -16,7 +18,7 @@ interface ProviderInfo {
 export const PROVIDERS: Record<ProviderType, ProviderInfo> = {
   bedrock: {
     name: "AWS Bedrock",
-    class: ClaudeProvider, // TODO: Replace with BedrockProvider
+    class: BedrockProvider,
     description: "Claude via AWS Bedrock",
     icon: "☁️",
   },
@@ -28,22 +30,13 @@ export const PROVIDERS: Record<ProviderType, ProviderInfo> = {
   },
   openai: {
     name: "OpenAI",
-    class: ClaudeProvider, // TODO: Replace with OpenAIProvider
+    class: OpenAIProvider,
     description: "GPT-4 and GPT-3.5",
     icon: "🔮",
   },
-  ollama: {
-    name: "Ollama (Local)",
-    class: ClaudeProvider, // TODO: Replace with OllamaProvider
-    description: "Local LLM, no API needed",
-    icon: "🏠",
-  },
 };
 
-export function createProvider(
-  type: ProviderType,
-  config: ProviderConfig,
-): LLMProvider {
+export function createProvider(type: ProviderType, config: ProviderConfig): LLMProvider {
   const provider = PROVIDERS[type];
   if (!provider) {
     throw new Error(`Unknown provider: ${type}`);

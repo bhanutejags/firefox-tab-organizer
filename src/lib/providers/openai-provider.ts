@@ -1,25 +1,25 @@
 /**
- * Claude API Provider using Vercel AI SDK
+ * OpenAI Provider using Vercel AI SDK
  */
 
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 import { type LanguageModelV1, generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
-import type { ClaudeConfig, ConfigSchema, GroupingResult, TabData } from "../types";
+import type { ConfigSchema, GroupingResult, OpenAIConfig, TabData } from "../types";
 
-export class ClaudeProvider extends LLMProvider {
-  private _config: ClaudeConfig;
+export class OpenAIProvider extends LLMProvider {
+  private _config: OpenAIConfig;
 
-  constructor(config: ClaudeConfig) {
+  constructor(config: OpenAIConfig) {
     super();
     this._config = config;
   }
 
   private getModel(): LanguageModelV1 {
-    const anthropic = createAnthropic({
-      apiKey: this._config.claudeApiKey,
+    const openai = createOpenAI({
+      apiKey: this._config.openaiApiKey,
     });
-    return anthropic(this._config.modelId);
+    return openai(this._config.modelId);
   }
 
   async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
@@ -46,29 +46,25 @@ export class ClaudeProvider extends LLMProvider {
       });
       return true;
     } catch (error) {
-      console.error("Claude connection test failed:", error);
+      console.error("OpenAI connection test failed:", error);
       return false;
     }
   }
 
   getConfigSchema(): ConfigSchema {
     return {
-      claudeApiKey: {
+      openaiApiKey: {
         type: "password",
-        label: "Claude API Key",
+        label: "OpenAI API Key",
         required: true,
-        placeholder: "sk-ant-...",
+        placeholder: "sk-...",
       },
       modelId: {
         type: "select",
         label: "Model",
         required: true,
-        default: "claude-3-5-sonnet-20241022",
-        options: [
-          "claude-3-5-sonnet-20241022",
-          "claude-3-opus-20240229",
-          "claude-3-haiku-20240307",
-        ],
+        default: "gpt-4o-mini",
+        options: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
       },
     };
   }

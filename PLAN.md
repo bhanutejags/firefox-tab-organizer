@@ -2,31 +2,62 @@
 
 ## 📊 Implementation Status
 
-**Current Phase:** Project Setup Complete ✅
+**Current Phase:** MVP Complete ✅
 
-### Completed
+### Completed - Phase 0: MVP Core
 
 - ✅ Project structure with Bun build system
 - ✅ TypeScript configuration (strict mode)
 - ✅ GitHub Actions CI/CD workflows
 - ✅ Abstract LLM provider architecture
-- ✅ Basic UI (popup and options pages)
 - ✅ Biome linter/formatter setup
 - ✅ Development documentation (CLAUDE.md)
 
-### In Progress
+**LLM Provider Implementations:**
 
-- 🔄 LLM provider implementations (Claude, Bedrock, OpenAI)
-- 🔄 Tab capture and grouping logic
-- 🔄 Provider configuration UI
+- ✅ Claude Provider (Anthropic API via Vercel AI SDK)
+- ✅ Bedrock Provider with Bearer Token support
+- ✅ OpenAI Provider (GPT-4/GPT-3.5 via Vercel AI SDK)
+- ✅ Custom HTTP client for Bedrock Converse API
+- ✅ Dual authentication (Bearer Token + AWS Credentials)
 
-### Next Steps
+**Core Functionality:**
 
-1. Implement concrete LLM providers with Vercel AI SDK
-2. Build tab organization logic in background script
-3. Complete options page with dynamic config
-4. Add error handling and user feedback
-5. Testing with real Firefox tab groups
+- ✅ Tab capture and filtering (excludes pinned/special URLs)
+- ✅ Background script with tab organization logic
+- ✅ Firefox Tab Groups API integration
+- ✅ LLM categorization with JSON response parsing
+- ✅ Dynamic provider configuration UI
+- ✅ Test connection functionality
+- ✅ Settings persistence in browser storage
+- ✅ Popup UI with optional custom prompt
+- ✅ Settings link integration
+
+**Bearer Token Authentication:**
+
+- ✅ AWS Bedrock bearer token support (12-hour tokens)
+- ✅ Direct Bedrock Converse API calls
+- ✅ Cross-region model invocation support
+- ✅ Custom model IDs (Claude Sonnet 4.5, Haiku 4.5, Opus 4.1)
+
+### Testing Status
+
+- ✅ Extension builds successfully
+- ✅ TypeScript compilation passing
+- ✅ Biome linting passing
+- ✅ Bearer token authentication working
+- ✅ Test connection functionality verified
+- 🔄 End-to-end tab organization testing in progress
+
+### Next Steps - Phase 1: Enhancements
+
+1. Improve JSON parsing reliability
+2. Add preview of proposed groups before applying
+3. Better loading states & animations
+4. Retry logic with user feedback
+5. Performance optimization for 50+ tabs
+6. Keyboard shortcuts
+7. Handle existing tab groups (dialog prompt)
 
 ---
 

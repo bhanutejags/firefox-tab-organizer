@@ -3,6 +3,8 @@
  */
 
 import browser from "webextension-polyfill";
+import { createProvider } from "./lib/provider-registry";
+import type { ExtensionStorage, GroupingResult, TabData } from "./lib/types";
 
 console.log("Firefox Tab Organizer background script loaded");
 
@@ -25,15 +27,97 @@ async function organizeTabsWithAI(userPrompt?: string): Promise<{
   try {
     console.log("Organizing tabs with prompt:", userPrompt);
 
-    // TODO: Implement tab organization logic
-    // 1. Get tabs from current window
-    // 2. Load provider config from storage
-    // 3. Call LLM provider
-    // 4. Create tab groups
+    // 1. Load configuration from storage
+    const storage = (await browser.storage.local.get([
+      "selectedProvider",
+      "providerConfigs",
+    ])) as Partial<ExtensionStorage>;
 
-    return { success: true, message: "Not yet implemented" };
+    const providerType = storage.selectedProvider || "claude";
+    const providerConfig = storage.providerConfigs?.[providerType];
+
+    if (!providerConfig) {
+      throw new Error("Provider not configured. Please configure your LLM provider in settings.");
+    }
+
+    // 2. Get tabs from current window
+    const tabs = await browser.tabs.query({ currentWindow: true });
+    const tabData: TabData[] = tabs
+      .filter(
+        (tab) =>
+          !tab.pinned &&
+          tab.url &&
+          !tab.url.startsWith("about:") &&
+          !tab.url.startsWith("moz-extension:"),
+      )
+      .map((tab) => ({
+        id: tab.id!,
+        index: tab.index,
+        title: tab.title || "Untitled",
+        url: tab.url!,
+        favIconUrl: tab.favIconUrl,
+        active: tab.active,
+        pinned: tab.pinned,
+        windowId: tab.windowId ?? 0,
+        groupId: tab.groupId ?? -1,
+      }));
+
+    if (tabData.length === 0) {
+      return {
+        success: false,
+        error: "No tabs to organize (only pinned or special tabs found)",
+      };
+    }
+
+    console.log(`Found ${tabData.length} tabs to organize`);
+
+    // 3. Create provider and categorize tabs
+    const provider = createProvider(providerType, providerConfig);
+    const grouping = await provider.categorize(tabData, userPrompt);
+
+    console.log("LLM grouping result:", grouping);
+
+    // 4. Apply grouping to browser
+    await applyGrouping(tabData, grouping);
+
+    return {
+      success: true,
+      message: `Successfully organized ${tabData.length} tabs into ${grouping.groups.length} groups`,
+    };
   } catch (error) {
     console.error("Failed to organize tabs:", error);
     return { success: false, error: String(error) };
   }
+}
+
+async function applyGrouping(tabs: TabData[], grouping: GroupingResult): Promise<void> {
+  console.log("Applying grouping to browser tabs...");
+
+  // Create tab groups from LLM categorization
+  for (const group of grouping.groups) {
+    const tabIds = group.tabIndices
+      .map((idx) => tabs[idx]?.id)
+      .filter((id): id is number => id !== undefined);
+
+    if (tabIds.length === 0) {
+      console.warn(`Skipping empty group: ${group.name}`);
+      continue;
+    }
+
+    console.log(
+      `Creating group "${group.name}" with ${tabIds.length} tabs (color: ${group.color})`,
+    );
+
+    // Group the tabs
+    const groupId = await browser.tabs.group({ tabIds });
+
+    // Update group properties
+    await browser.tabGroups.update(groupId, {
+      title: group.name,
+      color: group.color,
+      collapsed: false,
+    });
+  }
+
+  console.log("✓ Tab grouping complete");
 }

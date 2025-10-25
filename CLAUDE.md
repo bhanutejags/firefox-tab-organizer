@@ -303,10 +303,97 @@ If we add conversational refinement:
 
 Currently, single-shot categorization is sufficient.
 
+## AWS Bedrock Bearer Token Authentication
+
+### Overview
+
+The Bedrock provider supports **two authentication methods**:
+
+1. **Bearer Token (Recommended)** - Pre-generated token from AWS credentials
+2. **AWS Credentials** - Direct access key, secret key, and session token
+
+### Bearer Token Authentication
+
+Bearer tokens provide a more secure approach by:
+
+- Not storing raw AWS credentials in the browser
+- Using short-lived tokens (12-hour expiration)
+- Supporting the AWS Bedrock API Keys feature
+
+#### Token Generation
+
+Use the `~/.local/bin/fetch-bedrock-token` script to generate bearer tokens:
+
+```bash
+# Generate a bearer token
+~/.local/bin/fetch-bedrock-token
+```
+
+This script:
+
+1. Uses AWS SigV4 signing with your AWS credentials
+2. Creates a presigned URL for Bedrock API access
+3. Base64-encodes the URL as a bearer token
+4. Token is valid for 12 hours
+
+Reference: [AWS Bedrock Token Generator](https://github.com/aws/aws-bedrock-token-generator-python)
+
+#### Implementation Details
+
+The `BedrockProvider` class automatically detects authentication method:
+
+```typescript
+if (this._config.bearerToken) {
+  // Use direct HTTP call to Bedrock Converse API
+  const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${modelId}/converse`;
+  // Authorization: Bearer <token>
+} else {
+  // Use Vercel AI SDK with AWS credentials
+  // Uses SigV4 signing internally
+}
+```
+
+#### Bedrock Converse API
+
+When using bearer token auth, the provider calls the Bedrock Converse API directly:
+
+- **Endpoint**: `https://bedrock-runtime.<region>.amazonaws.com/model/<modelId>/converse`
+- **Method**: POST
+- **Headers**:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>`
+- **Body**: JSON with `system`, `messages`, and `inferenceConfig`
+
+### Supported Models
+
+Custom model IDs for cross-region invocation:
+
+- `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (default)
+- `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+- `us.anthropic.claude-opus-4-1-20250805-v1:0`
+
+### Configuration Priority
+
+The provider uses this order:
+
+1. If `bearerToken` is provided → use bearer token auth
+2. Else if `awsAccessKeyId` + `awsSecretAccessKey` → use AI SDK with credentials
+3. Else → throw error
+
+### Security Best Practices
+
+- ✅ **Use bearer tokens** for browser extensions (avoid storing AWS credentials)
+- ✅ **Rotate tokens regularly** (they expire after 12 hours)
+- ✅ **Store tokens in browser.storage.local** (encrypted by Firefox)
+- ❌ **Don't commit tokens** to git repositories
+
 ## Resources
 
 - [Bun Documentation](https://bun.sh/docs)
 - [Bun Build API](https://bun.sh/docs/bundler)
 - [Bun Lockfile](https://bun.sh/docs/pm/lockfile)
 - [Vercel AI SDK](https://ai-sdk.dev/docs/foundations/overview)
+- [Vercel AI SDK - LLMs Overview](https://ai-sdk.dev/llms.txt)
+- [AWS Bedrock API Keys](https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started-api-keys.html)
+- [AWS Bedrock Token Generator](https://github.com/aws/aws-bedrock-token-generator-python)
 - [Firefox Tab Groups API](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/group)

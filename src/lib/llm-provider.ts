@@ -2,7 +2,7 @@
  * Abstract base class for LLM providers
  */
 
-import type { TabData, GroupingResult, ConfigSchema } from "./types";
+import type { ConfigSchema, GroupingResult, TabData } from "./types";
 
 export abstract class LLMProvider {
   /**
@@ -44,7 +44,11 @@ Rules:
 
 ${userPrompt ? `User guidance: ${userPrompt}` : ""}
 
-Return JSON only:
+RESPONSE FORMAT - CRITICAL:
+You MUST respond with ONLY a valid JSON object. No markdown code blocks, no backticks, no explanation text.
+Start your response with { and end with }
+
+Required JSON structure:
 {
   "groups": [
     {
@@ -65,15 +69,40 @@ Return JSON only:
   }
 
   /**
+   * Extract JSON from response (handles markdown code blocks)
+   */
+  private extractJSON(response: string): string {
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonMatch) {
+      return jsonMatch[1];
+    }
+
+    // Look for JSON object in the response
+    const objectMatch = response.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      return objectMatch[0];
+    }
+
+    // Return as-is if no pattern found
+    return response.trim();
+  }
+
+  /**
    * Parse and validate LLM response
    */
   protected parseResponse(response: string): GroupingResult {
     try {
-      const data = JSON.parse(response) as GroupingResult;
+      // Extract JSON from potential markdown or extra text
+      const jsonStr = this.extractJSON(response);
+      const data = JSON.parse(jsonStr) as GroupingResult;
       this.validateGrouping(data);
       return data;
     } catch (error) {
-      throw new Error(`Failed to parse LLM response: ${error}`);
+      console.error("Failed to parse LLM response:", response);
+      throw new Error(
+        `Failed to parse LLM response: ${error}. Response: ${response.substring(0, 200)}...`,
+      );
     }
   }
 

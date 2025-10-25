@@ -41,8 +41,13 @@ export interface GroupingResult {
 
 // Provider configuration schemas
 export interface BedrockConfig {
-  awsAccessKeyId: string;
-  awsSecretAccessKey: string;
+  // Bearer token authentication (preferred)
+  bearerToken?: string;
+  // OR fallback to AWS credentials
+  awsAccessKeyId?: string;
+  awsSecretAccessKey?: string;
+  awsSessionToken?: string;
+  // Common fields
   awsRegion: string;
   modelId: string;
 }
@@ -57,18 +62,9 @@ export interface OpenAIConfig {
   modelId: string;
 }
 
-export interface OllamaConfig {
-  endpoint: string;
-  modelId: string;
-}
+export type ProviderConfig = BedrockConfig | ClaudeConfig | OpenAIConfig;
 
-export type ProviderConfig =
-  | BedrockConfig
-  | ClaudeConfig
-  | OpenAIConfig
-  | OllamaConfig;
-
-export type ProviderType = "bedrock" | "claude" | "openai" | "ollama";
+export type ProviderType = "bedrock" | "claude" | "openai";
 
 // Storage schema
 export interface ExtensionStorage {
@@ -77,7 +73,6 @@ export interface ExtensionStorage {
     bedrock?: BedrockConfig;
     claude?: ClaudeConfig;
     openai?: OpenAIConfig;
-    ollama?: OllamaConfig;
   };
   preferences: {
     maxGroups: number;
