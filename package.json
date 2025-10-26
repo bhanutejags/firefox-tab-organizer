@@ -12,6 +12,8 @@
     "dev": "bun --watch build.ts",
     "start": "bun run build && web-ext run -s dist/ --browser-console",
     "package": "bun run build && cd dist && zip -r firefox-tab-organizer.xpi .",
+    "sign": "web-ext sign --source-dir=dist --artifacts-dir=web-ext-artifacts --channel=unlisted",
+    "sign:1p": "bash -c 'export WEB_EXT_API_KEY=$(op item get \"Mozilla Extension Sign\" --field \"JWT issuer\" --reveal) && export WEB_EXT_API_SECRET=$(op item get \"Mozilla Extension Sign\" --field \"JWT secret\" --reveal) && bun run sign'",
     "type-check": "tsc --noEmit",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
