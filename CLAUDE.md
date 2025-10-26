@@ -48,6 +48,9 @@ firefox-tab-organizer/
 │   │   ├── llm-provider.ts    # Abstract LLM provider
 │   │   ├── provider-registry.ts
 │   │   └── providers/
+│   │       ├── bedrock-provider.ts  # ✅ Implemented
+│   │       ├── claude-provider.ts   # ✅ Implemented
+│   │       └── openai-provider.ts   # ✅ Implemented
 │   ├── popup/
 │   │   ├── popup.ts
 │   │   ├── popup.html
@@ -56,15 +59,29 @@ firefox-tab-organizer/
 │   │   ├── options.ts
 │   │   ├── options.html
 │   │   └── options.css
-│   └── icons/
+│   └── icons/                  # Extension icons (16/48/128px)
+├── scripts/
+│   ├── get-mozilla-keys.sh    # Load signing credentials from 1Password
+│   └── set-github-secrets.sh  # Set GitHub secrets from 1Password
+├── docs/
+│   └── DESIGN.md              # Architecture documentation
 ├── dist/                       # Build output (gitignored)
+│   ├── firefox-tab-organizer.xpi  # Unsigned package
+│   └── *.js, *.html, *.css    # Built files
+├── web-ext-artifacts/          # Signed extensions (gitignored)
+│   └── [hash]-0.1.x.xpi       # Mozilla-signed package
 ├── build.ts                    # Bun build script
 ├── manifest.json              # Extension manifest
 ├── package.json
 ├── tsconfig.json
 ├── bunfig.toml               # Bun configuration
 ├── bun.lock                  # Text lockfile (committed)
-└── .github/workflows/        # CI/CD
+├── LICENSE                    # MIT License
+├── TODO.md                    # Task tracking
+└── .github/workflows/         # CI/CD
+    ├── build.yml              # Build verification
+    ├── release.yml            # Tag-triggered releases + signing
+    └── weekly-release.yml     # Automated weekly releases
 ```
 
 ## Development Workflow
@@ -117,8 +134,14 @@ bun run format
 # Create production build
 bun run build
 
-# Package as .xpi
+# Package as unsigned .xpi
 bun run package
+
+# Sign extension with Mozilla (requires credentials)
+bun run sign
+
+# Sign using 1Password credentials (one command)
+bun run sign:1p
 ```
 
 ## Build Process Details
@@ -157,21 +180,39 @@ await Bun.build({
 
 ### GitHub Actions
 
-Two workflows configured:
+Three workflows configured:
 
-1. **build.yml**: Runs on push/PR
+1. **build.yml**: Runs on push/PR to main
    - Type checking
+   - Linting with Biome
    - Build verification
-   - Artifact upload
+   - Artifact upload (unsigned .xpi)
 
-2. **release.yml**: Runs on version tags
-   - Full build
-   - Create GitHub release
-   - Attach .xpi file
+2. **release.yml**: Runs on version tags (v0.1.x)
+   - Full build and type check
+   - **Mozilla signing** (requires GitHub secrets)
+   - Creates GitHub Release
+   - Attaches both unsigned and signed .xpi files
+
+3. **weekly-release.yml**: Runs every Sunday at 00:00 UTC
+   - Checks for commits since last release
+   - Auto-bumps version (patch)
+   - Updates package.json and manifest.json
+   - Creates and pushes new tag
+   - Triggers release.yml workflow
 
 ### Bun in CI
 
 Uses `oven-sh/setup-bun@v1` action for fast, cached Bun installation.
+
+### Mozilla Signing in CI
+
+Release workflow automatically signs extensions using:
+
+- **GitHub Secret**: `MOZILLA_API_KEY` (JWT issuer)
+- **GitHub Secret**: `MOZILLA_API_SECRET` (JWT secret)
+
+Set secrets using: `./scripts/set-github-secrets.sh`
 
 ## TypeScript Configuration
 
@@ -199,12 +240,12 @@ TypeScript is used for type checking only. Bun's bundler handles compilation dir
 
 ### Concrete Providers
 
-Planned implementations:
+Implemented providers (all via Vercel AI SDK):
 
-- Claude API (via Vercel AI SDK)
-- AWS Bedrock
-- OpenAI
-- Ollama (local)
+- ✅ **Claude API** - Direct Anthropic API (claude-provider.ts)
+- ✅ **AWS Bedrock** - Claude via AWS Bedrock with bearer token support (bedrock-provider.ts)
+- ✅ **OpenAI** - GPT-4/GPT-3.5 (openai-provider.ts)
+- 🔄 **Ollama** - Local LLM support (planned)
 
 ### Provider Registry
 
@@ -302,6 +343,87 @@ If we add conversational refinement:
 - Iterative loop
 
 Currently, single-shot categorization is sufficient.
+
+## Mozilla Extension Signing
+
+### Overview
+
+Extensions must be signed by Mozilla to be installed without warnings. This project supports:
+
+1. **Self-Distribution (Unlisted)** - Sign without listing on AMO
+2. **Automated Signing** - GitHub Actions signs on every release
+
+### Local Signing
+
+**Using 1Password (Recommended):**
+
+```bash
+bun run build
+bun run sign:1p
+```
+
+This fetches credentials from 1Password item "Mozilla Extension Sign" and signs automatically.
+
+**Manual Signing:**
+
+```bash
+export WEB_EXT_API_KEY="your-jwt-issuer"
+export WEB_EXT_API_SECRET="your-jwt-secret"
+bun run build
+bun run sign
+```
+
+Signed extensions appear in `web-ext-artifacts/[hash]-0.1.x.xpi`
+
+### GitHub Actions Automation
+
+Release workflow (`release.yml`) automatically signs on every tag push:
+
+1. Builds extension
+2. Signs with Mozilla using GitHub secrets
+3. Attaches both unsigned and signed .xpi to GitHub Release
+
+**Setup GitHub Secrets:**
+
+```bash
+./scripts/set-github-secrets.sh
+```
+
+This script:
+
+- Fetches credentials from 1Password
+- Pipes them directly to `gh secret set` (never displayed)
+- Sets `MOZILLA_API_KEY` and `MOZILLA_API_SECRET`
+
+### Credentials Management
+
+**1Password Integration:**
+
+- **Item Name**: "Mozilla Extension Sign"
+- **Fields**: "JWT issuer", "JWT secret"
+- **Scripts**:
+  - `scripts/get-mozilla-keys.sh` - Load credentials to env
+  - `scripts/set-github-secrets.sh` - Set GitHub repo secrets
+
+**Security:**
+
+- Never commit credentials to git
+- Use 1Password CLI for secure access
+- GitHub secrets encrypted at rest
+
+### Signing Process
+
+```
+bun run sign
+  ↓
+web-ext uploads to Mozilla
+  ↓
+Automated review (usually < 5 minutes)
+  ↓
+Signed .xpi downloaded to web-ext-artifacts/
+  ↓
+Ready for distribution
+```
 
 ## AWS Bedrock Bearer Token Authentication
 
