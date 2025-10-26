@@ -32,6 +32,19 @@ jobs:
       - name: Create extension package
         run: bun run package
 
+      - name: Sign extension with Mozilla
+        run: bun run sign
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.MOZILLA_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.MOZILLA_API_SECRET }}
+
+      - name: Find signed extension
+        id: find_signed
+        run: |
+          SIGNED_XPI=$(ls web-ext-artifacts/*.xpi | head -1)
+          echo "signed_xpi=${SIGNED_XPI}" >> $GITHUB_OUTPUT
+          echo "✅ Found signed extension: ${SIGNED_XPI}"
+
       - name: Extract version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
@@ -39,7 +52,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/firefox-tab-organizer.xpi
+          files: |
+            dist/firefox-tab-organizer.xpi
+            ${{ steps.find_signed.outputs.signed_xpi }}
           generate_release_notes: true
           draft: false
           prerelease: false
