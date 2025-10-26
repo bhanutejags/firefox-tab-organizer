@@ -1,22 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Tab Groups Organizer",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "AI-powered tab organization using LLM intelligence",
-
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-
-  "permissions": ["tabs", "tabGroups", "storage"],
-
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage"
+  ],
   "background": {
-    "scripts": ["background.js"],
+    "scripts": [
+      "background.js"
+    ],
     "type": "module"
   },
-
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -26,12 +28,10 @@
     },
     "default_title": "Organize Tabs"
   },
-
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
   },
-
   "browser_specific_settings": {
     "gecko": {
       "id": "tab-organizer@bhanutejags.github",
