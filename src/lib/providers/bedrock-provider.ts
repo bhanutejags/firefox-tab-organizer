@@ -5,7 +5,7 @@
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { type LanguageModelV1, generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
-import type { BedrockConfig, ConfigSchema, GroupingResult, TabData } from "../types";
+import type { BedrockConfig, CleanResult, ConfigSchema, GroupingResult, TabData } from "../types";
 
 export class BedrockProvider extends LLMProvider {
   private _config: BedrockConfig;
@@ -37,6 +37,7 @@ export class BedrockProvider extends LLMProvider {
   private async callBedrockWithBearerToken(
     systemPrompt: string,
     userPrompt: string,
+    maxTokens = 4096,
   ): Promise<string> {
     const endpoint = `https://bedrock-runtime.${this._config.awsRegion}.amazonaws.com/model/${this._config.modelId}/converse`;
 
@@ -62,7 +63,7 @@ Remember: Return ONLY the JSON object, no markdown, no explanation, no code bloc
       ],
       inferenceConfig: {
         temperature: 0.3,
-        maxTokens: 4096,
+        maxTokens,
         stopSequences: ["\n\n---", "```"],
       },
     };
@@ -91,58 +92,54 @@ Remember: Return ONLY the JSON object, no markdown, no explanation, no code bloc
     throw new Error("Unexpected Bedrock API response format");
   }
 
-  async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
-    const prompt = this.buildPrompt(tabs, userPrompt);
-
-    let text: string;
-
+  /**
+   * Call LLM with automatic bearer token or AWS credentials handling
+   */
+  private async callLLM(
+    systemPrompt: string,
+    userPrompt: string,
+    maxTokens = 4096,
+  ): Promise<string> {
     if (this._config.bearerToken) {
       // Use bearer token authentication
-      text = await this.callBedrockWithBearerToken(prompt.system, prompt.user);
-    } else {
-      // Use AWS credentials with AI SDK
-      const model = this.getModel();
-      if (!model) {
-        throw new Error(
-          "No authentication configured. Provide either bearer token or AWS credentials.",
-        );
-      }
-
-      const response = await generateText({
-        model,
-        system: prompt.system,
-        prompt: prompt.user,
-        temperature: 0.3,
-        maxTokens: 4096,
-        maxRetries: 3,
-      });
-
-      text = response.text;
+      return await this.callBedrockWithBearerToken(systemPrompt, userPrompt, maxTokens);
     }
 
+    // Use AWS credentials with AI SDK
+    const model = this.getModel();
+    if (!model) {
+      throw new Error(
+        "No authentication configured. Provide either bearer token or AWS credentials.",
+      );
+    }
+
+    const response = await generateText({
+      model,
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.3,
+      maxTokens,
+      maxRetries: 3,
+    });
+
+    return response.text;
+  }
+
+  async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
+    const prompt = this.buildPrompt(tabs, userPrompt);
+    const text = await this.callLLM(prompt.system, prompt.user, 4096);
     return this.parseResponse(text);
+  }
+
+  async cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult> {
+    const prompt = this.buildCleanPrompt(tabs, userPrompt);
+    const text = await this.callLLM(prompt.system, prompt.user, 2048);
+    return this.parseCleanResponse(text, tabs);
   }
 
   async testConnection(): Promise<boolean> {
     try {
-      if (this._config.bearerToken) {
-        // Test bearer token
-        await this.callBedrockWithBearerToken("You are a test assistant.", "Hi");
-      } else {
-        // Test AWS credentials
-        const model = this.getModel();
-        if (!model) {
-          throw new Error(
-            "No authentication configured. Provide either bearer token or AWS credentials.",
-          );
-        }
-
-        await generateText({
-          model,
-          prompt: "Test",
-          maxTokens: 10,
-        });
-      }
+      await this.callLLM("You are a test assistant.", "Hi", 10);
       return true;
     } catch (error) {
       console.error("Bedrock connection test failed:", error);

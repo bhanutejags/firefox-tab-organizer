@@ -5,7 +5,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { type LanguageModelV1, generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
-import type { ClaudeConfig, ConfigSchema, GroupingResult, TabData } from "../types";
+import type { ClaudeConfig, CleanResult, ConfigSchema, GroupingResult, TabData } from "../types";
 
 export class ClaudeProvider extends LLMProvider {
   private _config: ClaudeConfig;
@@ -35,6 +35,21 @@ export class ClaudeProvider extends LLMProvider {
     });
 
     return this.parseResponse(text);
+  }
+
+  async cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult> {
+    const prompt = this.buildCleanPrompt(tabs, userPrompt);
+
+    const { text } = await generateText({
+      model: this.getModel(),
+      system: prompt.system,
+      prompt: prompt.user,
+      temperature: 0.3,
+      maxTokens: 2048,
+      maxRetries: 3,
+    });
+
+    return this.parseCleanResponse(text, tabs);
   }
 
   async testConnection(): Promise<boolean> {

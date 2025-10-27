@@ -5,7 +5,7 @@
 import browser from "webextension-polyfill";
 import type { Runtime } from "webextension-polyfill";
 import { createProvider } from "./lib/provider-registry";
-import type { ExtensionStorage, GroupingResult, TabData } from "./lib/types";
+import type { CleanResult, ExtensionStorage, GroupingResult, TabData } from "./lib/types";
 
 // Message types for extension communication
 interface OrganizeTabsMessage {
@@ -13,7 +13,17 @@ interface OrganizeTabsMessage {
   userPrompt?: string;
 }
 
-type ExtensionMessage = OrganizeTabsMessage;
+interface CleanTabsMessage {
+  action: "cleanTabs";
+  userPrompt: string;
+}
+
+interface ConfirmCloseTabsMessage {
+  action: "confirmCloseTabs";
+  tabIndices: number[];
+}
+
+type ExtensionMessage = OrganizeTabsMessage | CleanTabsMessage | ConfirmCloseTabsMessage;
 
 console.log("Firefox Tab Organizer background script loaded");
 
@@ -26,6 +36,12 @@ browser.runtime.onMessage.addListener((message: unknown, _sender: Runtime.Messag
     const typedMessage = message as ExtensionMessage;
     if (typedMessage.action === "organizeTabs") {
       return organizeTabsWithAI(typedMessage.userPrompt);
+    }
+    if (typedMessage.action === "cleanTabs") {
+      return cleanTabsWithAI(typedMessage.userPrompt);
+    }
+    if (typedMessage.action === "confirmCloseTabs") {
+      return confirmCloseTabs(typedMessage.tabIndices);
     }
   }
 
@@ -134,4 +150,134 @@ async function applyGrouping(tabs: TabData[], grouping: GroupingResult): Promise
   }
 
   console.log("✓ Tab grouping complete");
+}
+
+async function cleanTabsWithAI(userPrompt: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  cleanResult?: CleanResult;
+}> {
+  try {
+    console.log("Cleaning tabs with prompt:", userPrompt);
+
+    // 1. Load configuration from storage
+    const storage = (await browser.storage.local.get([
+      "selectedProvider",
+      "providerConfigs",
+    ])) as Partial<ExtensionStorage>;
+
+    const providerType = storage.selectedProvider || "claude";
+    const providerConfig = storage.providerConfigs?.[providerType];
+
+    if (!providerConfig) {
+      throw new Error("Provider not configured. Please configure your LLM provider in settings.");
+    }
+
+    // 2. Get tabs from current window
+    const tabs = await browser.tabs.query({ currentWindow: true });
+    const tabData: TabData[] = tabs
+      .filter(
+        (tab): tab is typeof tab & { id: number; url: string } =>
+          !tab.pinned &&
+          tab.id !== undefined &&
+          tab.url !== undefined &&
+          !tab.url.startsWith("about:") &&
+          !tab.url.startsWith("moz-extension:"),
+      )
+      .map((tab) => ({
+        id: tab.id,
+        index: tab.index,
+        title: tab.title || "Untitled",
+        url: tab.url,
+        favIconUrl: tab.favIconUrl,
+        active: tab.active,
+        pinned: tab.pinned,
+        windowId: tab.windowId ?? 0,
+        groupId: tab.groupId ?? -1,
+      }));
+
+    if (tabData.length === 0) {
+      return {
+        success: false,
+        error: "No tabs to clean (only pinned or special tabs found)",
+      };
+    }
+
+    console.log(`Found ${tabData.length} tabs to analyze`);
+
+    // 3. Create provider and identify tabs to close
+    const provider = createProvider(providerType, providerConfig);
+    const cleanResult = await provider.cleanTabs(tabData, userPrompt);
+
+    console.log("LLM clean result:", cleanResult);
+
+    // 4. Return result with preview data (don't close tabs yet)
+    return {
+      success: true,
+      message: `Found ${cleanResult.tabsToClose.length} tabs to close`,
+      cleanResult,
+    };
+  } catch (error) {
+    console.error("Failed to clean tabs:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+async function confirmCloseTabs(tabIndices: number[]): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    console.log("Closing tabs at indices:", tabIndices);
+
+    // Get current tabs
+    const tabs = await browser.tabs.query({ currentWindow: true });
+    const tabData: TabData[] = tabs
+      .filter(
+        (tab): tab is typeof tab & { id: number; url: string } =>
+          !tab.pinned &&
+          tab.id !== undefined &&
+          tab.url !== undefined &&
+          !tab.url.startsWith("about:") &&
+          !tab.url.startsWith("moz-extension:"),
+      )
+      .map((tab) => ({
+        id: tab.id,
+        index: tab.index,
+        title: tab.title || "Untitled",
+        url: tab.url,
+        favIconUrl: tab.favIconUrl,
+        active: tab.active,
+        pinned: tab.pinned,
+        windowId: tab.windowId ?? 0,
+        groupId: tab.groupId ?? -1,
+      }));
+
+    // Get tab IDs to close
+    const tabIdsToClose = tabIndices
+      .map((idx) => tabData[idx]?.id)
+      .filter((id): id is number => id !== undefined);
+
+    if (tabIdsToClose.length === 0) {
+      return {
+        success: false,
+        error: "No valid tabs to close",
+      };
+    }
+
+    // Close the tabs
+    await browser.tabs.remove(tabIdsToClose);
+
+    console.log(`✓ Closed ${tabIdsToClose.length} tabs`);
+
+    return {
+      success: true,
+      message: `Successfully closed ${tabIdsToClose.length} tabs`,
+    };
+  } catch (error) {
+    console.error("Failed to close tabs:", error);
+    return { success: false, error: String(error) };
+  }
 }

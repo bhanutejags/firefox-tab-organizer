@@ -5,7 +5,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { type LanguageModelV1, generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
-import type { ConfigSchema, GroupingResult, OpenAIConfig, TabData } from "../types";
+import type { CleanResult, ConfigSchema, GroupingResult, OpenAIConfig, TabData } from "../types";
 
 export class OpenAIProvider extends LLMProvider {
   private _config: OpenAIConfig;
@@ -35,6 +35,21 @@ export class OpenAIProvider extends LLMProvider {
     });
 
     return this.parseResponse(text);
+  }
+
+  async cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult> {
+    const prompt = this.buildCleanPrompt(tabs, userPrompt);
+
+    const { text } = await generateText({
+      model: this.getModel(),
+      system: prompt.system,
+      prompt: prompt.user,
+      temperature: 0.3,
+      maxTokens: 2048,
+      maxRetries: 3,
+    });
+
+    return this.parseCleanResponse(text, tabs);
   }
 
   async testConnection(): Promise<boolean> {

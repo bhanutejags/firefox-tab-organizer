@@ -2,13 +2,18 @@
  * Abstract base class for LLM providers
  */
 
-import type { ConfigSchema, GroupingResult, TabData } from "./types";
+import type { CleanResult, ConfigSchema, GroupingResult, TabData } from "./types";
 
 export abstract class LLMProvider {
   /**
    * Categorize tabs into groups using LLM
    */
   abstract categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult>;
+
+  /**
+   * Identify tabs to close based on user prompt using LLM
+   */
+  abstract cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult>;
 
   /**
    * Test if credentials are valid
@@ -21,7 +26,7 @@ export abstract class LLMProvider {
   abstract getConfigSchema(): ConfigSchema;
 
   /**
-   * Build standardized prompt (shared logic)
+   * Build standardized prompt for tab organization (shared logic)
    */
   protected buildPrompt(
     tabs: TabData[],
@@ -56,6 +61,43 @@ Required JSON structure:
     }
   ],
   "ungrouped": [1, 3]
+}`;
+
+    const userMessage = tabs
+      .map((tab, idx) => `[${idx}] ${tab.title}\n    URL: ${tab.url}`)
+      .join("\n\n");
+
+    return { system: systemPrompt, user: userMessage };
+  }
+
+  /**
+   * Build prompt for tab cleaning (shared logic)
+   */
+  protected buildCleanPrompt(
+    tabs: TabData[],
+    userPrompt: string,
+  ): {
+    system: string;
+    user: string;
+  } {
+    const systemPrompt = `You are a tab cleanup assistant. Analyze the provided browser tabs and identify which ones should be closed based on the user's request.
+
+Rules:
+- Be conservative - only suggest closing tabs that clearly match the user's criteria
+- Consider tab titles, URLs, and domains
+- Provide clear reasoning for your selection
+- If no tabs match, return an empty array
+
+User request: ${userPrompt}
+
+RESPONSE FORMAT - CRITICAL:
+You MUST respond with ONLY a valid JSON object. No markdown code blocks, no backticks, no explanation text.
+Start your response with { and end with }
+
+Required JSON structure:
+{
+  "tabsToClose": [0, 2, 5],
+  "reasoning": "Brief explanation of why these tabs were selected"
 }`;
 
     const userMessage = tabs
@@ -119,6 +161,44 @@ Required JSON structure:
 
     if (!Array.isArray(data.ungrouped)) {
       throw new Error("Invalid response: missing ungrouped array");
+    }
+  }
+
+  /**
+   * Parse and validate LLM clean response
+   */
+  protected parseCleanResponse(response: string, tabs: TabData[]): CleanResult {
+    try {
+      // Extract JSON from potential markdown or extra text
+      const jsonStr = this.extractJSON(response);
+      const data = JSON.parse(jsonStr) as Omit<CleanResult, "tabDetails">;
+      this.validateCleanResult(data);
+
+      // Add tab details for clipboard
+      const tabDetails = data.tabsToClose.map((idx) => ({
+        title: tabs[idx]?.title || "Unknown",
+        url: tabs[idx]?.url || "",
+      }));
+
+      return { ...data, tabDetails };
+    } catch (error) {
+      console.error("Failed to parse LLM clean response:", response);
+      throw new Error(
+        `Failed to parse LLM response: ${error}. Response: ${response.substring(0, 200)}...`,
+      );
+    }
+  }
+
+  /**
+   * Validate clean result structure
+   */
+  protected validateCleanResult(data: Omit<CleanResult, "tabDetails">): void {
+    if (!Array.isArray(data.tabsToClose)) {
+      throw new Error("Invalid response: missing tabsToClose array");
+    }
+
+    if (typeof data.reasoning !== "string") {
+      throw new Error("Invalid response: missing reasoning string");
     }
   }
 }
