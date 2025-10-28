@@ -5,7 +5,9 @@
 import browser from "webextension-polyfill";
 import type { Runtime } from "webextension-polyfill";
 import { createProvider } from "./lib/provider-registry";
-import type { CleanResult, ExtensionStorage, GroupingResult, TabData } from "./lib/types";
+import { loadProviderConfig } from "./lib/storage-utils";
+import type { CleanResult, GroupingResult, TabData } from "./lib/types";
+import { getOrganizableTabs, getTabIds } from "./lib/utils";
 
 // Message types for extension communication
 interface OrganizeTabsMessage {
@@ -57,40 +59,11 @@ async function organizeTabsWithAI(userPrompt?: string): Promise<{
     console.log("Organizing tabs with prompt:", userPrompt);
 
     // 1. Load configuration from storage
-    const storage = (await browser.storage.local.get([
-      "selectedProvider",
-      "providerConfigs",
-    ])) as Partial<ExtensionStorage>;
-
-    const providerType = storage.selectedProvider || "claude";
-    const providerConfig = storage.providerConfigs?.[providerType];
-
-    if (!providerConfig) {
-      throw new Error("Provider not configured. Please configure your LLM provider in settings.");
-    }
+    const { providerType, providerConfig } = await loadProviderConfig();
 
     // 2. Get tabs from current window
     const tabs = await browser.tabs.query({ currentWindow: true });
-    const tabData: TabData[] = tabs
-      .filter(
-        (tab): tab is typeof tab & { id: number; url: string } =>
-          !tab.pinned &&
-          tab.id !== undefined &&
-          tab.url !== undefined &&
-          !tab.url.startsWith("about:") &&
-          !tab.url.startsWith("moz-extension:"),
-      )
-      .map((tab) => ({
-        id: tab.id,
-        index: tab.index,
-        title: tab.title || "Untitled",
-        url: tab.url,
-        favIconUrl: tab.favIconUrl,
-        active: tab.active,
-        pinned: tab.pinned,
-        windowId: tab.windowId ?? 0,
-        groupId: tab.groupId ?? -1,
-      }));
+    const tabData = getOrganizableTabs(tabs);
 
     if (tabData.length === 0) {
       return {
@@ -125,9 +98,7 @@ async function applyGrouping(tabs: TabData[], grouping: GroupingResult): Promise
 
   // Create tab groups from LLM categorization
   for (const group of grouping.groups) {
-    const tabIds = group.tabIndices
-      .map((idx) => tabs[idx]?.id)
-      .filter((id): id is number => id !== undefined);
+    const tabIds = getTabIds(tabs, group.tabIndices);
 
     if (tabIds.length === 0) {
       console.warn(`Skipping empty group: ${group.name}`);
@@ -162,40 +133,11 @@ async function cleanTabsWithAI(userPrompt: string): Promise<{
     console.log("Cleaning tabs with prompt:", userPrompt);
 
     // 1. Load configuration from storage
-    const storage = (await browser.storage.local.get([
-      "selectedProvider",
-      "providerConfigs",
-    ])) as Partial<ExtensionStorage>;
-
-    const providerType = storage.selectedProvider || "claude";
-    const providerConfig = storage.providerConfigs?.[providerType];
-
-    if (!providerConfig) {
-      throw new Error("Provider not configured. Please configure your LLM provider in settings.");
-    }
+    const { providerType, providerConfig } = await loadProviderConfig();
 
     // 2. Get tabs from current window
     const tabs = await browser.tabs.query({ currentWindow: true });
-    const tabData: TabData[] = tabs
-      .filter(
-        (tab): tab is typeof tab & { id: number; url: string } =>
-          !tab.pinned &&
-          tab.id !== undefined &&
-          tab.url !== undefined &&
-          !tab.url.startsWith("about:") &&
-          !tab.url.startsWith("moz-extension:"),
-      )
-      .map((tab) => ({
-        id: tab.id,
-        index: tab.index,
-        title: tab.title || "Untitled",
-        url: tab.url,
-        favIconUrl: tab.favIconUrl,
-        active: tab.active,
-        pinned: tab.pinned,
-        windowId: tab.windowId ?? 0,
-        groupId: tab.groupId ?? -1,
-      }));
+    const tabData = getOrganizableTabs(tabs);
 
     if (tabData.length === 0) {
       return {
@@ -234,31 +176,10 @@ async function confirmCloseTabs(tabIndices: number[]): Promise<{
 
     // Get current tabs
     const tabs = await browser.tabs.query({ currentWindow: true });
-    const tabData: TabData[] = tabs
-      .filter(
-        (tab): tab is typeof tab & { id: number; url: string } =>
-          !tab.pinned &&
-          tab.id !== undefined &&
-          tab.url !== undefined &&
-          !tab.url.startsWith("about:") &&
-          !tab.url.startsWith("moz-extension:"),
-      )
-      .map((tab) => ({
-        id: tab.id,
-        index: tab.index,
-        title: tab.title || "Untitled",
-        url: tab.url,
-        favIconUrl: tab.favIconUrl,
-        active: tab.active,
-        pinned: tab.pinned,
-        windowId: tab.windowId ?? 0,
-        groupId: tab.groupId ?? -1,
-      }));
+    const tabData = getOrganizableTabs(tabs);
 
     // Get tab IDs to close
-    const tabIdsToClose = tabIndices
-      .map((idx) => tabData[idx]?.id)
-      .filter((id): id is number => id !== undefined);
+    const tabIdsToClose = getTabIds(tabData, tabIndices);
 
     if (tabIdsToClose.length === 0) {
       return {
