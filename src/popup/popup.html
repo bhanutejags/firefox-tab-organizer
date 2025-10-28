@@ -26,6 +26,38 @@
         🪄 Organize Tabs
       </button>
 
+      <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e0e0e0;">
+
+      <div class="form-group">
+        <label for="clean-prompt-input">Clean tabs by prompt:</label>
+        <input
+          type="text"
+          id="clean-prompt-input"
+          placeholder='e.g., "close all shopping tabs"'
+        />
+      </div>
+
+      <button id="clean-button" class="primary-button">
+        🧹 Find Tabs to Clean
+      </button>
+
+      <div id="preview-section" style="display: none; margin-top: 15px;">
+        <h3 style="margin: 0 0 10px 0; font-size: 14px;">Preview tabs to close:</h3>
+        <div id="preview-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; background: #f9f9f9;"></div>
+        <div id="preview-reasoning" style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px; font-size: 12px;"></div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button id="copy-urls-button" class="secondary-button" style="flex: 1;">
+            📋 Copy URLs
+          </button>
+          <button id="confirm-close-button" class="danger-button" style="flex: 1;">
+            ✓ Close Tabs
+          </button>
+          <button id="cancel-button" class="secondary-button" style="flex: 1;">
+            ✗ Cancel
+          </button>
+        </div>
+      </div>
+
       <div id="status" class="status-message"></div>
 
       <div class="info">

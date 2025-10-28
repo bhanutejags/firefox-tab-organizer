@@ -39,6 +39,13 @@ export interface GroupingResult {
   ungrouped: number[];
 }
 
+// LLM's tab cleaning result
+export interface CleanResult {
+  tabsToClose: number[]; // Indices of tabs to close
+  reasoning: string; // Explanation of why these tabs were selected
+  tabDetails: Array<{ title: string; url: string }>; // Details for clipboard
+}
+
 // Provider configuration schemas
 export interface BedrockConfig {
   // Bearer token authentication (preferred)
