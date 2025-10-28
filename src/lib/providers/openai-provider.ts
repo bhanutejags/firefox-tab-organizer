@@ -3,11 +3,11 @@
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
-import { type LanguageModelV1, generateText } from "ai";
-import { LLMProvider } from "../llm-provider";
-import type { CleanResult, ConfigSchema, GroupingResult, OpenAIConfig, TabData } from "../types";
+import type { LanguageModelV1 } from "ai";
+import type { ConfigSchema, OpenAIConfig } from "../types";
+import { SimpleAISDKProvider } from "./simple-ai-sdk-provider";
 
-export class OpenAIProvider extends LLMProvider {
+export class OpenAIProvider extends SimpleAISDKProvider {
   private _config: OpenAIConfig;
 
   constructor(config: OpenAIConfig) {
@@ -15,55 +15,11 @@ export class OpenAIProvider extends LLMProvider {
     this._config = config;
   }
 
-  private getModel(): LanguageModelV1 {
+  protected getModel(): LanguageModelV1 {
     const openai = createOpenAI({
       apiKey: this._config.openaiApiKey,
     });
     return openai(this._config.modelId);
-  }
-
-  async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
-    const prompt = this.buildPrompt(tabs, userPrompt);
-
-    const { text } = await generateText({
-      model: this.getModel(),
-      system: prompt.system,
-      prompt: prompt.user,
-      temperature: 0.3,
-      maxTokens: 4096,
-      maxRetries: 3,
-    });
-
-    return this.parseResponse(text);
-  }
-
-  async cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult> {
-    const prompt = this.buildCleanPrompt(tabs, userPrompt);
-
-    const { text } = await generateText({
-      model: this.getModel(),
-      system: prompt.system,
-      prompt: prompt.user,
-      temperature: 0.3,
-      maxTokens: 2048,
-      maxRetries: 3,
-    });
-
-    return this.parseCleanResponse(text, tabs);
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      await generateText({
-        model: this.getModel(),
-        prompt: "Test",
-        maxTokens: 10,
-      });
-      return true;
-    } catch (error) {
-      console.error("OpenAI connection test failed:", error);
-      return false;
-    }
   }
 
   getConfigSchema(): ConfigSchema {

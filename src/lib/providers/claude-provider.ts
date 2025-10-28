@@ -3,11 +3,11 @@
  */
 
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { type LanguageModelV1, generateText } from "ai";
-import { LLMProvider } from "../llm-provider";
-import type { ClaudeConfig, CleanResult, ConfigSchema, GroupingResult, TabData } from "../types";
+import type { LanguageModelV1 } from "ai";
+import type { ClaudeConfig, ConfigSchema } from "../types";
+import { SimpleAISDKProvider } from "./simple-ai-sdk-provider";
 
-export class ClaudeProvider extends LLMProvider {
+export class ClaudeProvider extends SimpleAISDKProvider {
   private _config: ClaudeConfig;
 
   constructor(config: ClaudeConfig) {
@@ -15,55 +15,11 @@ export class ClaudeProvider extends LLMProvider {
     this._config = config;
   }
 
-  private getModel(): LanguageModelV1 {
+  protected getModel(): LanguageModelV1 {
     const anthropic = createAnthropic({
       apiKey: this._config.claudeApiKey,
     });
     return anthropic(this._config.modelId);
-  }
-
-  async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
-    const prompt = this.buildPrompt(tabs, userPrompt);
-
-    const { text } = await generateText({
-      model: this.getModel(),
-      system: prompt.system,
-      prompt: prompt.user,
-      temperature: 0.3,
-      maxTokens: 4096,
-      maxRetries: 3,
-    });
-
-    return this.parseResponse(text);
-  }
-
-  async cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult> {
-    const prompt = this.buildCleanPrompt(tabs, userPrompt);
-
-    const { text } = await generateText({
-      model: this.getModel(),
-      system: prompt.system,
-      prompt: prompt.user,
-      temperature: 0.3,
-      maxTokens: 2048,
-      maxRetries: 3,
-    });
-
-    return this.parseCleanResponse(text, tabs);
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      await generateText({
-        model: this.getModel(),
-        prompt: "Test",
-        maxTokens: 10,
-      });
-      return true;
-    } catch (error) {
-      console.error("Claude connection test failed:", error);
-      return false;
-    }
   }
 
   getConfigSchema(): ConfigSchema {

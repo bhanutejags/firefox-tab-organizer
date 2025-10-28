@@ -81,10 +81,6 @@ export interface ExtensionStorage {
     claude?: ClaudeConfig;
     openai?: OpenAIConfig;
   };
-  preferences: {
-    maxGroups: number;
-    autoCollapse: boolean;
-  };
 }
 
 // Config field for dynamic UI generation
