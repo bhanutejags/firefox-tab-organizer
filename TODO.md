@@ -70,6 +70,19 @@ Task tracking for Firefox Tab Organizer. See [docs/DESIGN.md](./docs/DESIGN.md) 
   - [ ] Bulk actions on matched tabs (close, bookmark, move to group)
   - [ ] Query history and saved queries
 
+### Duplicate Tab Detection
+
+- [ ] **Deterministic duplicate tab detection and removal (no LLM)**
+  - See detailed implementation plan: [docs/IMPLEMENTATION_PLAN_DUPLICATE_TABS.md](./docs/IMPLEMENTATION_PLAN_DUPLICATE_TABS.md)
+  - [ ] Core detection logic with multiple matching strategies (exact URL, normalized URL, domain matching, etc.)
+  - [ ] User-configurable criteria in popup UI (presets + advanced options)
+  - [ ] Preview UI showing grouped duplicates with keep/close indicators
+  - [ ] Integration with existing confirmation flow
+  - [ ] Safe defaults (never close active tab, ignore pinned tabs)
+  - [ ] Whitelist protection for important domains
+  - [ ] ~1,160 lines of code across 6 files + 1 new file
+  - Target: v0.2.0
+
 ### Performance
 
 - [ ] **Optimize performance for 50+ tabs**
