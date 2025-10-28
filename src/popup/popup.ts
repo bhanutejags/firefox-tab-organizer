@@ -4,6 +4,7 @@
 
 import browser from "webextension-polyfill";
 import type { CleanResult } from "../lib/types";
+import { handleResponse, setVisibility, updateStatus } from "./ui-utils";
 
 // Store current clean result for clipboard and confirmation
 let currentCleanResult: CleanResult | null = null;
@@ -27,9 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     organizeButton.addEventListener("click", async () => {
       const userPrompt = promptInput?.value?.trim() || "";
 
-      if (statusDiv) {
-        statusDiv.textContent = "Organizing tabs...";
-      }
+      updateStatus(statusDiv, "Organizing tabs...", "status-message loading");
 
       try {
         const response = (await browser.runtime.sendMessage({
@@ -37,17 +36,9 @@ document.addEventListener("DOMContentLoaded", () => {
           userPrompt,
         })) as { success: boolean; message?: string; error?: string };
 
-        if (statusDiv) {
-          if (response.success) {
-            statusDiv.textContent = `✓ ${response.message || "Tabs organized!"}`;
-          } else {
-            statusDiv.textContent = `✗ Error: ${response.error || response.message}`;
-          }
-        }
+        handleResponse(response, statusDiv);
       } catch (error) {
-        if (statusDiv) {
-          statusDiv.textContent = `✗ Error: ${error}`;
-        }
+        updateStatus(statusDiv, `✗ Error: ${error}`, "status-message error");
         console.error("Failed to organize tabs:", error);
       }
     });
@@ -59,20 +50,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const userPrompt = cleanPromptInput?.value?.trim() || "";
 
       if (!userPrompt) {
-        if (statusDiv) {
-          statusDiv.textContent = "✗ Please enter a prompt for cleaning tabs";
-        }
+        updateStatus(
+          statusDiv,
+          "✗ Please enter a prompt for cleaning tabs",
+          "status-message error",
+        );
         return;
       }
 
-      if (statusDiv) {
-        statusDiv.textContent = "Analyzing tabs...";
-      }
-
-      // Hide preview section
-      if (previewSection) {
-        previewSection.style.display = "none";
-      }
+      updateStatus(statusDiv, "Analyzing tabs...", "status-message loading");
+      setVisibility(previewSection, false);
 
       try {
         const response = (await browser.runtime.sendMessage({
@@ -89,9 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
           currentCleanResult = response.cleanResult;
 
           if (response.cleanResult.tabsToClose.length === 0) {
-            if (statusDiv) {
-              statusDiv.textContent = "✓ No tabs matched your criteria";
-            }
+            updateStatus(statusDiv, "✓ No tabs matched your criteria");
             return;
           }
 
@@ -113,21 +98,21 @@ document.addEventListener("DOMContentLoaded", () => {
             // Show reasoning
             previewReasoning.textContent = response.cleanResult.reasoning;
 
-            previewSection.style.display = "block";
-
-            if (statusDiv) {
-              statusDiv.textContent = `Found ${response.cleanResult.tabsToClose.length} tabs to close`;
-            }
+            setVisibility(previewSection, true);
+            updateStatus(
+              statusDiv,
+              `Found ${response.cleanResult.tabsToClose.length} tabs to close`,
+            );
           }
         } else {
-          if (statusDiv) {
-            statusDiv.textContent = `✗ Error: ${response.error || response.message}`;
-          }
+          updateStatus(
+            statusDiv,
+            `✗ Error: ${response.error || response.message}`,
+            "status-message error",
+          );
         }
       } catch (error) {
-        if (statusDiv) {
-          statusDiv.textContent = `✗ Error: ${error}`;
-        }
+        updateStatus(statusDiv, `✗ Error: ${error}`, "status-message error");
         console.error("Failed to clean tabs:", error);
       }
     });
@@ -142,13 +127,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         await navigator.clipboard.writeText(urls);
-        if (statusDiv) {
-          statusDiv.textContent = "✓ URLs copied to clipboard!";
-        }
+        updateStatus(statusDiv, "✓ URLs copied to clipboard!", "status-message success");
       } catch (error) {
-        if (statusDiv) {
-          statusDiv.textContent = `✗ Failed to copy: ${error}`;
-        }
+        updateStatus(statusDiv, `✗ Failed to copy: ${error}`, "status-message error");
       }
     });
   }
@@ -158,9 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     confirmCloseButton.addEventListener("click", async () => {
       if (!currentCleanResult) return;
 
-      if (statusDiv) {
-        statusDiv.textContent = "Closing tabs...";
-      }
+      updateStatus(statusDiv, "Closing tabs...", "status-message loading");
 
       try {
         const response = (await browser.runtime.sendMessage({
@@ -169,15 +148,8 @@ document.addEventListener("DOMContentLoaded", () => {
         })) as { success: boolean; message?: string; error?: string };
 
         if (response.success) {
-          if (statusDiv) {
-            statusDiv.textContent = `✓ ${response.message}`;
-          }
-
-          // Hide preview
-          if (previewSection) {
-            previewSection.style.display = "none";
-          }
-
+          handleResponse(response, statusDiv);
+          setVisibility(previewSection, false);
           currentCleanResult = null;
 
           // Clear clean prompt input
@@ -185,14 +157,10 @@ document.addEventListener("DOMContentLoaded", () => {
             cleanPromptInput.value = "";
           }
         } else {
-          if (statusDiv) {
-            statusDiv.textContent = `✗ Error: ${response.error}`;
-          }
+          handleResponse(response, statusDiv);
         }
       } catch (error) {
-        if (statusDiv) {
-          statusDiv.textContent = `✗ Error: ${error}`;
-        }
+        updateStatus(statusDiv, `✗ Error: ${error}`, "status-message error");
         console.error("Failed to close tabs:", error);
       }
     });
@@ -201,13 +169,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Handle cancel button
   if (cancelButton) {
     cancelButton.addEventListener("click", () => {
-      if (previewSection) {
-        previewSection.style.display = "none";
-      }
+      setVisibility(previewSection, false);
       currentCleanResult = null;
-      if (statusDiv) {
-        statusDiv.textContent = "";
-      }
+      updateStatus(statusDiv, "");
     });
   }
 
