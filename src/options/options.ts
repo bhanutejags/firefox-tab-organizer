@@ -5,6 +5,8 @@
 import browser from "webextension-polyfill";
 import { PROVIDERS, createProvider } from "../lib/provider-registry";
 import type { ExtensionStorage, ProviderType } from "../lib/types";
+import { clearStatusAfter, updateStatus } from "../popup/ui-utils";
+import { setInputValue } from "./form-utils";
 
 let currentProvider: ProviderType = "claude";
 
@@ -30,19 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
     saveButton.addEventListener("click", async () => {
       try {
         await saveSettings();
-        if (statusDiv) {
-          statusDiv.textContent = "✓ Settings saved!";
-          statusDiv.className = "status-message success";
-          setTimeout(() => {
-            statusDiv.textContent = "";
-            statusDiv.className = "status-message";
-          }, 3000);
-        }
+        updateStatus(statusDiv, "✓ Settings saved!", "status-message success");
+        clearStatusAfter(statusDiv, 3000);
       } catch (error) {
-        if (statusDiv) {
-          statusDiv.textContent = `✗ Error: ${error}`;
-          statusDiv.className = "status-message error";
-        }
+        updateStatus(statusDiv, `✗ Error: ${error}`, "status-message error");
         console.error("Failed to save settings:", error);
       }
     });
@@ -51,10 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Handle test connection button
   if (testButton) {
     testButton.addEventListener("click", async () => {
-      if (statusDiv) {
-        statusDiv.textContent = "Testing connection...";
-        statusDiv.className = "status-message";
-      }
+      updateStatus(statusDiv, "Testing connection...", "status-message");
 
       try {
         const config = collectProviderConfig();
@@ -62,25 +52,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const provider = createProvider(currentProvider, config as any);
         const isConnected = await provider.testConnection();
 
-        if (statusDiv) {
-          if (isConnected) {
-            statusDiv.textContent = "✓ Connection successful!";
-            statusDiv.className = "status-message success";
-          } else {
-            statusDiv.textContent = "✗ Connection failed. Check your credentials.";
-            statusDiv.className = "status-message error";
-          }
-
-          setTimeout(() => {
-            statusDiv.textContent = "";
-            statusDiv.className = "status-message";
-          }, 5000);
+        if (isConnected) {
+          updateStatus(statusDiv, "✓ Connection successful!", "status-message success");
+        } else {
+          updateStatus(
+            statusDiv,
+            "✗ Connection failed. Check your credentials.",
+            "status-message error",
+          );
         }
+        clearStatusAfter(statusDiv, 5000);
       } catch (error) {
-        if (statusDiv) {
-          statusDiv.textContent = `✗ Connection error: ${error}`;
-          statusDiv.className = "status-message error";
-        }
+        updateStatus(statusDiv, `✗ Connection error: ${error}`, "status-message error");
         console.error("Connection test failed:", error);
       }
     });
@@ -182,11 +165,7 @@ function renderProviderConfig(
       }
 
       // Set saved or default value
-      if (savedConfig?.[fieldName]) {
-        input.value = savedConfig[fieldName];
-      } else if (fieldDef.default) {
-        input.value = String(fieldDef.default);
-      }
+      setInputValue(input, savedConfig?.[fieldName], fieldDef.default);
     } else {
       // Create text/password/number input
       input = document.createElement("input");
@@ -200,11 +179,7 @@ function renderProviderConfig(
       }
 
       // Set saved or default value
-      if (savedConfig?.[fieldName]) {
-        input.value = String(savedConfig[fieldName]);
-      } else if (fieldDef.default) {
-        input.value = String(fieldDef.default);
-      }
+      setInputValue(input, savedConfig?.[fieldName], fieldDef.default);
     }
 
     if (fieldDef.required) {
