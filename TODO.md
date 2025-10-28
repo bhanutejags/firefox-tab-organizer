@@ -84,6 +84,17 @@ Task tracking for Firefox Tab Organizer. See [docs/DESIGN.md](./docs/DESIGN.md) 
 
 **Goal:** Advanced capabilities for power users (v0.3.0+)
 
+### Code Refactoring & Simplification
+
+- [ ] **Remove Bedrock bearer token authentication (deferred from refactoring)**
+  - Simplify to only use AWS SDK with temporary credentials (via sessionToken)
+  - Already supports `awsSessionToken` for AWS STS temporary credentials
+  - Migration path: Users should use `aws sts get-session-token` or AWS SSO
+  - Estimated ~100 line reduction in bedrock-provider.ts
+  - Document AWS temporary credentials usage in CLAUDE.md
+  - Remove custom HTTP client (`callBedrockWithBearerToken`)
+  - See `docs/REFACTORING_PLAN.md` for context
+
 ### Automation
 
 - [ ] **Auto-organize on schedule**
