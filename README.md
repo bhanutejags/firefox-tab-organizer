@@ -35,6 +35,10 @@ bun run dev
 - [Firefox Tab Groups API](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/group) - Browser API
 - [MDN WebExtensions Examples](https://github.com/mdn/webextensions-examples) - Extension patterns
 
+## License & Copyright
+
+Licensed under [Apache License 2.0](./LICENSE). Note: This project was LLM-generated with human review and guidance, so not sure to what extent any copyright exists on it.
+
 ---
 
 by [bhanutejags](https://github.com/bhanutejags)
