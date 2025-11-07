@@ -14,12 +14,15 @@
     "sign:1p": "bash -c 'export WEB_EXT_API_KEY=$(op item get \"Mozilla Extension Sign\" --field \"JWT issuer\" --reveal) && export WEB_EXT_API_SECRET=$(op item get \"Mozilla Extension Sign\" --field \"JWT secret\" --reveal) && bun run sign'",
     "type-check": "tsc --noEmit",
     "lint": "biome check src/",
+    "lint:all": "bun run type-check && bun run lint",
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^0.0.33",
     "@ai-sdk/anthropic": "^0.0.51",
+    "@ai-sdk/cerebras": "1.0.29",
+    "@ai-sdk/google": "2.0.28",
     "@ai-sdk/openai": "^0.0.66",
     "ai": "^3.4.0",
     "webextension-polyfill": "^0.12.0"

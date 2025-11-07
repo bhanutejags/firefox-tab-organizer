@@ -67,9 +67,24 @@ export interface OpenAIConfig {
   modelId: string;
 }
 
-export type ProviderConfig = BedrockConfig | ClaudeConfig | OpenAIConfig;
+export interface GeminiConfig {
+  geminiApiKey: string;
+  modelId: string;
+}
 
-export type ProviderType = "bedrock" | "claude" | "openai";
+export interface CerebrasConfig {
+  cerebrasApiKey: string;
+  modelId: string;
+}
+
+export type ProviderConfig =
+  | BedrockConfig
+  | ClaudeConfig
+  | OpenAIConfig
+  | GeminiConfig
+  | CerebrasConfig;
+
+export type ProviderType = "bedrock" | "claude" | "openai" | "gemini" | "cerebras";
 
 // Storage schema
 export interface ExtensionStorage {
@@ -78,6 +93,8 @@ export interface ExtensionStorage {
     bedrock?: BedrockConfig;
     claude?: ClaudeConfig;
     openai?: OpenAIConfig;
+    gemini?: GeminiConfig;
+    cerebras?: CerebrasConfig;
   };
 }
 

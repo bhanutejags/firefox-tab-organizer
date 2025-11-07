@@ -3,7 +3,7 @@
  * Consolidates duplicate code between Claude and OpenAI providers
  */
 
-import { type LanguageModelV1, generateText } from "ai";
+import { generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
 import type { CleanResult, GroupingResult, TabData } from "../types";
 import { LLM_CONFIG } from "../utils";
@@ -19,7 +19,8 @@ export abstract class SimpleAISDKProvider extends LLMProvider {
    * Get the AI SDK model instance.
    * Subclasses must implement this to provide provider-specific model.
    */
-  protected abstract getModel(): LanguageModelV1;
+  // biome-ignore lint/suspicious/noExplicitAny: Need to accept different SDK versions (V1/V2) at runtime
+  protected abstract getModel(): any;
 
   /**
    * Call LLM with standardized parameters.
