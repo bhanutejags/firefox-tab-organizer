@@ -48,11 +48,9 @@ export interface CleanResult {
 
 // Provider configuration schemas
 export interface BedrockConfig {
-  // Bearer token authentication (preferred)
-  bearerToken?: string;
-  // OR fallback to AWS credentials
-  awsAccessKeyId?: string;
-  awsSecretAccessKey?: string;
+  // AWS credentials
+  awsAccessKeyId: string;
+  awsSecretAccessKey: string;
   awsSessionToken?: string;
   // Common fields
   awsRegion: string;

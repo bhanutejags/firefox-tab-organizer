@@ -1,9 +1,9 @@
 /**
- * AWS Bedrock Provider with Bearer Token Support
+ * AWS Bedrock Provider
  */
 
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import { type LanguageModelV1, generateText } from "ai";
+import { generateText } from "ai";
 import { LLMProvider } from "../llm-provider";
 import type { BedrockConfig, CleanResult, ConfigSchema, GroupingResult, TabData } from "../types";
 
@@ -15,103 +15,25 @@ export class BedrockProvider extends LLMProvider {
     this._config = config;
   }
 
-  private getModel(): LanguageModelV1 | null {
-    // If bearer token is provided, return null to use custom HTTP client
-    if (this._config.bearerToken) {
-      return null;
-    }
-
-    // Otherwise use AI SDK with AWS credentials
+  private getModel() {
     const bedrock = createAmazonBedrock({
       region: this._config.awsRegion,
-      accessKeyId: this._config.awsAccessKeyId || "",
-      secretAccessKey: this._config.awsSecretAccessKey || "",
+      accessKeyId: this._config.awsAccessKeyId,
+      secretAccessKey: this._config.awsSecretAccessKey,
       sessionToken: this._config.awsSessionToken,
     });
     return bedrock(this._config.modelId);
   }
 
   /**
-   * Make direct HTTP call to Bedrock Converse API using bearer token
-   */
-  private async callBedrockWithBearerToken(
-    systemPrompt: string,
-    userPrompt: string,
-    maxTokens = 4096,
-  ): Promise<string> {
-    const endpoint = `https://bedrock-runtime.${this._config.awsRegion}.amazonaws.com/model/${this._config.modelId}/converse`;
-
-    const requestBody = {
-      system: [
-        {
-          text: `${systemPrompt}
-
-CRITICAL: You MUST respond with ONLY valid JSON. Do not include any markdown formatting, code blocks, or explanatory text. Return ONLY the raw JSON object.`,
-        },
-      ],
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              text: `${userPrompt}
-
-Remember: Return ONLY the JSON object, no markdown, no explanation, no code blocks.`,
-            },
-          ],
-        },
-      ],
-      inferenceConfig: {
-        temperature: 0.3,
-        maxTokens,
-        stopSequences: ["\n\n---", "```"],
-      },
-    };
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this._config.bearerToken}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Bedrock API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-
-    // Extract text from Bedrock Converse API response
-    if (data.output?.message?.content?.[0]?.text) {
-      return data.output.message.content[0].text;
-    }
-
-    throw new Error("Unexpected Bedrock API response format");
-  }
-
-  /**
-   * Call LLM with automatic bearer token or AWS credentials handling
+   * Call LLM using AWS credentials with AI SDK
    */
   private async callLLM(
     systemPrompt: string,
     userPrompt: string,
     maxTokens = 4096,
   ): Promise<string> {
-    if (this._config.bearerToken) {
-      // Use bearer token authentication
-      return await this.callBedrockWithBearerToken(systemPrompt, userPrompt, maxTokens);
-    }
-
-    // Use AWS credentials with AI SDK
     const model = this.getModel();
-    if (!model) {
-      throw new Error(
-        "No authentication configured. Provide either bearer token or AWS credentials.",
-      );
-    }
 
     const response = await generateText({
       model,
@@ -149,23 +71,17 @@ Remember: Return ONLY the JSON object, no markdown, no explanation, no code bloc
 
   getConfigSchema(): ConfigSchema {
     return {
-      bearerToken: {
-        type: "password",
-        label: "Bearer Token (Recommended)",
-        required: false,
-        placeholder: "Paste token from ~/.local/bin/fetch-bedrock-token",
-      },
       awsAccessKeyId: {
         type: "string",
-        label: "AWS Access Key ID (Alternative)",
-        required: false,
-        placeholder: "AKIA... (only if not using bearer token)",
+        label: "AWS Access Key ID",
+        required: true,
+        placeholder: "AKIA...",
       },
       awsSecretAccessKey: {
         type: "password",
-        label: "AWS Secret Access Key (Alternative)",
-        required: false,
-        placeholder: "Only if not using bearer token",
+        label: "AWS Secret Access Key",
+        required: true,
+        placeholder: "Your AWS secret access key",
       },
       awsSessionToken: {
         type: "password",
