@@ -441,12 +441,11 @@ export interface GroupingResult {
 
 // Provider Configurations
 export interface BedrockConfig {
-  awsAccessKeyId?: string;
-  awsSecretAccessKey?: string;
+  awsAccessKeyId: string;
+  awsSecretAccessKey: string;
   awsSessionToken?: string;
   awsRegion: string;
   modelId: string;
-  bearerToken?: string; // Alternative auth method
 }
 
 export interface ClaudeConfig {
@@ -489,54 +488,6 @@ export interface ConfigField {
 
 export type ConfigSchema = Record<string, ConfigField>;
 ```
-
----
-
-## AWS Bedrock Bearer Token Authentication
-
-### Overview
-
-The Bedrock provider supports **two authentication methods**:
-
-1. **Bearer Token (Recommended)** - Pre-generated token from AWS credentials
-2. **AWS Credentials** - Direct access key, secret key, and session token
-
-### Bearer Token Benefits
-
-- More secure (no raw credentials in browser)
-- Short-lived tokens (12-hour expiration)
-- Supports AWS Bedrock API Keys feature
-
-### Implementation
-
-```typescript
-// Automatic detection in BedrockProvider
-if (this._config.bearerToken) {
-  // Use direct HTTP call to Bedrock Converse API
-  const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${modelId}/converse`;
-  // Authorization: Bearer <token>
-} else {
-  // Use Vercel AI SDK with AWS credentials
-  // Uses SigV4 signing internally
-}
-```
-
-### Bedrock Converse API
-
-- **Endpoint**: `https://bedrock-runtime.<region>.amazonaws.com/model/<modelId>/converse`
-- **Method**: POST
-- **Headers**:
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <token>`
-- **Body**: JSON with `system`, `messages`, and `inferenceConfig`
-
-### Supported Models
-
-Custom model IDs for cross-region invocation:
-
-- `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (default)
-- `us.anthropic.claude-haiku-4-5-20251001-v1:0`
-- `us.anthropic.claude-opus-4-1-20250805-v1:0`
 
 ---
 
@@ -657,9 +608,9 @@ Tab Groups (local)
 
 **AWS Bedrock**
 
-- Dual authentication: Bearer token (recommended) + AWS credentials fallback
-- Bearer token: 12-hour presigned tokens for enhanced security
-- Direct Bedrock Converse API calls when using bearer tokens
+- Integration via `@ai-sdk/amazon-bedrock`
+- AWS credentials authentication (access key ID, secret access key, optional session token)
+- SigV4 signing handled automatically by Vercel AI SDK
 - Cross-region model invocation support with custom model IDs:
   - `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
   - `us.anthropic.claude-haiku-4-5-20251001-v1:0`
@@ -738,38 +689,17 @@ Tab Groups (local)
 
 **Secure Credential Storage**
 
-- All API keys/tokens stored in `browser.storage.local`
+- All API keys and AWS credentials stored in `browser.storage.local`
 - Firefox encrypts storage automatically (no plaintext on disk)
 - Credentials only transmitted to user's chosen LLM provider
 - No telemetry, tracking, or third-party data sharing
 
-### Bearer Token Authentication (Bedrock)
+**AWS Bedrock Authentication**
 
-**Security Benefits**
-
-- Avoids storing raw AWS credentials in browser extension
-- Short-lived tokens (12-hour expiration) limit exposure window
-- Supports AWS Bedrock API Keys feature for programmatic access
-- Presigned URLs contain temporary SigV4 signatures
-
-**Token Generation** (external script: `~/.local/bin/fetch-bedrock-token`)
-
-1. Uses AWS SigV4 signing with IAM credentials
-2. Creates presigned URL for Bedrock API access
-3. Base64-encodes URL as bearer token
-4. User copies token into extension options page
-
-**Implementation Auto-Detection**
-
-```typescript
-if (config.bearerToken) {
-  // Direct HTTPS call to Bedrock Converse API
-  // Authorization: Bearer <base64-encoded-presigned-url>
-} else {
-  // Vercel AI SDK with AWS credentials (SigV4 signing)
-  // Uses awsAccessKeyId, awsSecretAccessKey, awsSessionToken
-}
-```
+- Uses AWS credentials (access key ID, secret access key, optional session token)
+- SigV4 signing performed automatically by Vercel AI SDK
+- All requests authenticated via standard AWS IAM credentials
+- Credentials are encrypted at rest by Firefox browser storage
 
 ---
 

@@ -33,7 +33,6 @@ After comprehensive analysis, identified **53+ instances** of code duplication a
 ### Phase 1: Documentation & Planning ✓
 
 - [x] Write this plan to `docs/REFACTORING_PLAN.md`
-- [x] Add TODO item for future bearer token removal (deferred)
 
 ### Phase 2: Utility Functions & Shared Logic
 
@@ -180,10 +179,9 @@ Changes:
 - Remove `categorize()`, `cleanTabs()`, `testConnection()` (inherited)
 - Keep only provider-specific `getModel()` and `getConfigSchema()`
 
-#### 3.4 Keep `src/lib/providers/bedrock-provider.ts` As-Is
+#### 3.4 Simplify `src/lib/providers/bedrock-provider.ts`
 
-**Note:** Bearer token authentication preserved for backward compatibility
-**Future:** Marked for removal in TODO.md (user will migrate to AWS temporary credentials)
+**Note:** Bedrock provider uses AWS credentials (access key ID, secret access key, session token) with SigV4 signing via Vercel AI SDK
 
 ### Phase 4: Refactor Main Files
 
@@ -295,23 +293,17 @@ After each phase:
 - Keep git commits small and descriptive
 - All changes are refactoring - no behavior changes intended
 - Can revert individual commits if issues arise
-- Bearer token support preserved (low risk)
 
 ---
 
 ## Future Considerations (Post-Refactoring)
 
-1. **Remove bearer token support from BedrockProvider** (TODO.md)
-   - Simplify to only use AWS SDK with temporary credentials
-   - Document migration path for existing users
-   - Estimated ~100 additional line reduction
-
-2. **Unit testing infrastructure**
+1. **Unit testing infrastructure**
    - Add Bun test runner setup
    - Test utility functions in isolation
    - Mock browser APIs for provider testing
 
-3. **Shared CSS/styling utilities**
+2. **Shared CSS/styling utilities**
    - Extract common styles from popup.css and options.css
    - Create shared component CSS
 
@@ -322,7 +314,6 @@ After each phase:
 ### Phase 1: Documentation ✓
 
 - [x] Write this plan
-- [x] Add TODO item for bearer token removal
 
 ### Phase 2: Utilities
 
