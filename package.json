@@ -1,6 +1,6 @@
 {
   "name": "firefox-tab-organizer",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "AI-powered Firefox Tab Groups organizer using TypeScript and Vercel AI SDK",
   "private": true,
   "type": "module",

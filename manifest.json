@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Groups Organizer",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "AI-powered tab organization using LLM intelligence",
   "icons": {
     "16": "icons/icon-16.png",
