@@ -95,9 +95,9 @@ Consolidated 5 `generateText()` calls and duplicate implementations:
 
 #### Bedrock Provider (`bedrock-provider.ts`)
 
-- **Status:** Kept as-is (no changes)
-- **Reason:** Bearer token authentication preserved per user request
-- **Future:** Marked for simplification in TODO.md (P2 - Future work)
+- **Before:** 197 lines with bearer token authentication
+- **After:** Simplified to use AWS credentials only
+- **Change:** Removed custom bearer token implementation, now uses Vercel AI SDK standard AWS auth
 
 ---
 
@@ -211,11 +211,7 @@ Consolidated 5 `generateText()` calls and duplicate implementations:
 7. `src/options/options.html` - Removed placeholder config
 8. `build.ts` - Added asset copying
 9. `package.json` - Simplified build scripts
-10. `TODO.md` - Added bearer token removal task (P2)
-
-### Files Unchanged (1)
-
-1. `src/lib/providers/bedrock-provider.ts` - Bearer token preserved
+10. `src/lib/providers/bedrock-provider.ts` - Removed bearer token, simplified to AWS credentials only
 
 ---
 
@@ -300,11 +296,11 @@ bun run build
 
 ### Provider File Sizes
 
-| Provider | Before    | After     | Reduction      |
-| -------- | --------- | --------- | -------------- |
-| Claude   | 91 lines  | 46 lines  | -49%           |
-| OpenAI   | 87 lines  | 42 lines  | -52%           |
-| Bedrock  | 197 lines | 197 lines | 0% (preserved) |
+| Provider | Before    | After     | Reduction |
+| -------- | --------- | --------- | --------- |
+| Claude   | 91 lines  | 46 lines  | -49%      |
+| OpenAI   | 87 lines  | 42 lines  | -52%      |
+| Bedrock  | 197 lines | ~46 lines | -77%      |
 
 ---
 
@@ -334,23 +330,12 @@ bun run build
 
 ---
 
-## 🔮 Future Improvements Documented
-
-### TODO.md Additions (P2 - Future)
-
-- **Remove Bedrock bearer token authentication**
-  - Estimated ~100 additional line reduction
-  - Simplify to AWS SDK only (already supports temporary credentials)
-  - Migration path documented for users
-  - See `docs/REFACTORING_PLAN.md` for context
-
 ---
 
 ## 📚 Documentation Created
 
 1. **`docs/REFACTORING_PLAN.md`** - Complete implementation plan with before/after code examples
 2. **`docs/REFACTORING_SUMMARY.md`** - This document (executive summary)
-3. **Updated `TODO.md`** - Added future bearer token removal task
 
 ---
 
@@ -360,7 +345,7 @@ bun run build
 2. **Create utilities incrementally** - Built utilities before refactoring usages
 3. **Use template method pattern** - Perfect for similar providers with minor differences
 4. **Test continuously** - Type-check, lint, and build after each phase
-5. **Document decisions** - Why bearer token was preserved, what's deferred
+5. **Simplify authentication** - Removed custom bearer token in favor of standard AWS credentials
 
 ---
 
@@ -378,7 +363,6 @@ bun run build
 ## 🙏 Acknowledgments
 
 - **User collaboration** - Clear requirements and feedback throughout
-- **Bearer token preservation** - Wise decision to defer breaking changes
 - **Incremental approach** - Phased implementation prevented errors
 - **Comprehensive testing** - Caught issues early with type-check/lint/build
 
@@ -390,7 +374,6 @@ bun run build
 2. 🔄 **Manual testing recommended** - Test tab organization, cleaning, and provider switching
 3. 📝 **Update CLAUDE.md** - Consider adding notes about utility usage patterns
 4. 🚀 **Deploy and monitor** - Watch for any edge cases in production
-5. 🔮 **Future work** - Address bearer token removal when ready (TODO.md P2)
 
 ---
 

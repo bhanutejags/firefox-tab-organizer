@@ -3,11 +3,10 @@
  */
 
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import { generateText } from "ai";
-import { LLMProvider } from "../llm-provider";
-import type { BedrockConfig, CleanResult, ConfigSchema, GroupingResult, TabData } from "../types";
+import type { BedrockConfig, ConfigSchema } from "../types";
+import { SimpleAISDKProvider } from "./simple-ai-sdk-provider";
 
-export class BedrockProvider extends LLMProvider {
+export class BedrockProvider extends SimpleAISDKProvider {
   private _config: BedrockConfig;
 
   constructor(config: BedrockConfig) {
@@ -15,7 +14,7 @@ export class BedrockProvider extends LLMProvider {
     this._config = config;
   }
 
-  private getModel() {
+  protected getModel() {
     const bedrock = createAmazonBedrock({
       region: this._config.awsRegion,
       accessKeyId: this._config.awsAccessKeyId,
@@ -23,50 +22,6 @@ export class BedrockProvider extends LLMProvider {
       sessionToken: this._config.awsSessionToken,
     });
     return bedrock(this._config.modelId);
-  }
-
-  /**
-   * Call LLM using AWS credentials with AI SDK
-   */
-  private async callLLM(
-    systemPrompt: string,
-    userPrompt: string,
-    maxTokens = 4096,
-  ): Promise<string> {
-    const model = this.getModel();
-
-    const response = await generateText({
-      model,
-      system: systemPrompt,
-      prompt: userPrompt,
-      temperature: 0.3,
-      maxTokens,
-      maxRetries: 3,
-    });
-
-    return response.text;
-  }
-
-  async categorize(tabs: TabData[], userPrompt?: string): Promise<GroupingResult> {
-    const prompt = this.buildPrompt(tabs, userPrompt);
-    const text = await this.callLLM(prompt.system, prompt.user, 4096);
-    return this.parseResponse(text);
-  }
-
-  async cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult> {
-    const prompt = this.buildCleanPrompt(tabs, userPrompt);
-    const text = await this.callLLM(prompt.system, prompt.user, 2048);
-    return this.parseCleanResponse(text, tabs);
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      await this.callLLM("You are a test assistant.", "Hi", 10);
-      return true;
-    } catch (error) {
-      console.error("Bedrock connection test failed:", error);
-      return false;
-    }
   }
 
   getConfigSchema(): ConfigSchema {

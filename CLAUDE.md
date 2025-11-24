@@ -114,8 +114,10 @@ After bundling TypeScript, the build process copies:
 **Implemented (all via Vercel AI SDK):**
 
 - ✅ Claude API - Direct Anthropic API
-- ✅ AWS Bedrock - Claude via AWS with bearer token support
+- ✅ AWS Bedrock - Claude via AWS
 - ✅ OpenAI - GPT-4/GPT-3.5
+- ✅ Google Gemini - Gemini 2.5 Pro/Flash and other models
+- ✅ Cerebras - Fast inference with Llama and other models
 
 ### Factory Pattern
 
@@ -129,57 +131,54 @@ After bundling TypeScript, the build process copies:
 4. Register in `provider-registry.ts`
 5. Update UI in options page
 
-## AWS Bedrock Bearer Token Authentication
+## Provider Authentication & Configuration
 
-### Overview
+### AWS Bedrock
 
-The Bedrock provider supports **two authentication methods**:
+**Authentication:** AWS credentials
 
-1. **Bearer Token (Recommended)** - Pre-generated token from AWS credentials
-2. **AWS Credentials** - Direct access key, secret key, session token
+- AWS Access Key ID (required)
+- AWS Secret Access Key (required)
+- AWS Session Token (optional, for temporary credentials)
 
-### Bearer Token Benefits
+**Implementation:** Uses Vercel AI SDK with AWS SigV4 signing
 
-- More secure (no raw credentials in browser)
-- Short-lived tokens (12-hour expiration)
-- Supports AWS Bedrock API Keys feature
-
-### Token Generation
-
-Use `~/.local/bin/fetch-bedrock-token` script:
-
-```bash
-# Generate bearer token
-~/.local/bin/fetch-bedrock-token
-```
-
-This script:
-
-1. Uses AWS SigV4 signing with IAM credentials
-2. Creates presigned URL for Bedrock API access
-3. Base64-encodes URL as bearer token
-4. Token valid for 12 hours
-
-### Implementation
-
-The `BedrockProvider` auto-detects authentication method:
-
-```typescript
-if (config.bearerToken) {
-  // Direct HTTP call to Bedrock Converse API
-  // Authorization: Bearer <token>
-} else {
-  // Vercel AI SDK with AWS credentials (SigV4 signing)
-}
-```
-
-### Supported Models
-
-Cross-region invocation model IDs:
+**Supported Models:**
 
 - `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (default)
 - `us.anthropic.claude-haiku-4-5-20251001-v1:0`
 - `us.anthropic.claude-opus-4-1-20250805-v1:0`
+
+### Google Gemini
+
+**Authentication:** API key from [Google AI Studio](https://aistudio.google.com/)
+
+**Supported Models:**
+
+- `gemini-2.5-flash` (default - best balance of speed/quality)
+- `gemini-2.5-pro` (highest quality)
+- `gemini-2.0-flash`
+- `gemini-1.5-pro`
+- `gemini-1.5-flash`
+- `gemini-1.5-flash-8b` (fastest)
+
+**Free Tier:** Available with rate limits
+
+### Cerebras
+
+**Authentication:** API key from [Cerebras Cloud](https://cerebras.ai/)
+
+**Supported Models:**
+
+- `llama-3.3-70b` (default - good quality)
+- `llama3.1-8b` (fastest)
+- `gpt-oss-120b`
+- `qwen-3-235b-a22b-instruct-2507`
+- `qwen-3-235b-a22b-thinking-2507`
+- `qwen-3-32b`
+- `qwen-3-coder-480b`
+
+**Note:** Free tier has 8192 token context limit. May require caution with large numbers of tabs.
 
 ## Mozilla Extension Signing
 
@@ -347,7 +346,6 @@ bun update
 - **API keys:** Never commit to git, use browser.storage.local (encrypted by Firefox)
 - **1Password CLI:** Used for secure credential access
 - **GitHub secrets:** Encrypted at rest, piped directly without display
-- **Bearer tokens:** Preferred over raw AWS credentials for browser extensions
 
 ## Resources
 

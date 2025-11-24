@@ -13,7 +13,7 @@ Task tracking for Firefox Tab Organizer. See [docs/DESIGN.md](./docs/DESIGN.md) 
   - [ ] Test with 30-50 tabs (typical user scenario)
   - [ ] Test with 100+ tabs (stress test, performance validation)
   - [ ] Verify Claude API provider works end-to-end
-  - [ ] Verify AWS Bedrock provider works end-to-end (bearer token auth)
+  - [ ] Verify AWS Bedrock provider works end-to-end
   - [ ] Verify OpenAI provider works end-to-end
   - [ ] Test custom prompts ("organize by project", "work vs personal", etc.)
   - [ ] Test error handling (API failures, invalid credentials, network issues)
@@ -97,17 +97,6 @@ Task tracking for Firefox Tab Organizer. See [docs/DESIGN.md](./docs/DESIGN.md) 
 
 **Goal:** Advanced capabilities for power users (v0.3.0+)
 
-### Code Refactoring & Simplification
-
-- [ ] **Remove Bedrock bearer token authentication (deferred from refactoring)**
-  - Simplify to only use AWS SDK with temporary credentials (via sessionToken)
-  - Already supports `awsSessionToken` for AWS STS temporary credentials
-  - Migration path: Users should use `aws sts get-session-token` or AWS SSO
-  - Estimated ~100 line reduction in bedrock-provider.ts
-  - Document AWS temporary credentials usage in CLAUDE.md
-  - Remove custom HTTP client (`callBedrockWithBearerToken`)
-  - See `docs/REFACTORING_PLAN.md` for context
-
 ### Automation
 
 - [ ] **Auto-organize on schedule**
@@ -123,6 +112,37 @@ Task tracking for Firefox Tab Organizer. See [docs/DESIGN.md](./docs/DESIGN.md) 
   - [ ] Store user preferences (preferred group names, color patterns)
   - [ ] Use historical patterns to improve future categorizations
   - [ ] Privacy-preserving local learning (no data sent to servers)
+
+### Providers
+
+- [ ] **Google Gemini Provider - Enable when structured outputs supported**
+  - Currently disabled (removed from codebase)
+  - Issue: @ai-sdk/google-generative-ai generateObject not working
+  - Same error as Cerebras: "Model does not have a default object generation mode"
+  - Re-enable once fixed upstream
+
+- [ ] **Cerebras Provider - Enable when structured outputs supported**
+  - Currently disabled (removed from codebase)
+  - Blocked by: @ai-sdk/cerebras doesn't support generateObject yet
+  - Tracking issue: https://github.com/vercel/ai/issues/8475
+  - Tried beta version 2.0.0-beta.39 - still doesn't work
+  - Re-enable once upstream adds structured outputs support
+
+### Authentication
+
+- [ ] **AWS IAM Identity Center (SSO) support for Bedrock**
+  - [ ] Phase 1: Enhanced session token support with SSO documentation
+    - [ ] Update UI messaging in options page with IAM Identity Center workflow
+    - [ ] Add help text and link to AWS docs for getting temporary credentials
+    - [ ] Document step-by-step SSO credential copy process
+    - [ ] Optional: Parse session token for expiration warnings
+    - [ ] Optional: Add "Test Connection" button to validate credentials
+  - [ ] Phase 2: Full OAuth SSO flow (complex, long-term)
+    - [ ] OAuth integration using `browser.identity.launchWebAuthFlow()`
+    - [ ] AWS SSO-OIDC token exchange implementation
+    - [ ] Automatic credential refresh in background worker
+    - [ ] Token storage and expiration handling
+    - [ ] May require backend service for token exchange
 
 ### Collaboration
 

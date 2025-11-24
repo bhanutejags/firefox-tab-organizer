@@ -18,7 +18,7 @@ Technical design documentation for Firefox Tab Organizer.
 
 - **Abstract Base Class:** `LLMProvider` enforces provider interface
 - **Factory Pattern:** `createProvider()` for runtime instantiation
-- **Unified API:** All providers use AI SDK's `generateText()` interface
+- **Structured Outputs:** All providers use AI SDK's `generateObject()` with Zod schemas for type-safe, validated responses
 - **Type Safety:** Full TypeScript coverage with strict checks
 
 ---
@@ -81,22 +81,137 @@ Success notification
 
 ```typescript
 // src/lib/llm-provider.ts
-import { generateText, LanguageModel } from "ai";
-import { TabData, GroupingResult, ConfigSchema } from "./types";
+import type {
+  CleanResult,
+  ConfigSchema,
+  GroupingResult,
+  TabData,
+} from "./types";
 
 export abstract class LLMProvider {
   /**
-   * Get AI SDK model instance
+   * Categorize tabs into groups using LLM
    */
-  protected abstract getModel(): LanguageModel;
+  abstract categorize(
+    tabs: TabData[],
+    userPrompt?: string,
+  ): Promise<GroupingResult>;
 
   /**
-   * Get config schema for dynamic UI generation
+   * Identify tabs to close based on user prompt using LLM
+   */
+  abstract cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult>;
+
+  /**
+   * Test if credentials are valid
+   */
+  abstract testConnection(): Promise<boolean>;
+
+  /**
+   * Get configuration schema for UI generation
    */
   abstract getConfigSchema(): ConfigSchema;
 
   /**
-   * Categorize tabs using AI SDK
+   * Build standardized prompt for tab organization (shared logic)
+   */
+  protected buildPrompt(
+    tabs: TabData[],
+    userPrompt?: string,
+  ): {
+    system: string;
+    user: string;
+  } {
+    const systemPrompt = `You are a tab organization assistant. Analyze the provided browser tabs and group them into logical categories.
+
+Rules:
+- Create 3-7 groups maximum
+- Group by: topic, project, domain similarity, or purpose
+- Name groups clearly (e.g., "Development", "Research: AI", "Shopping")
+- Assign appropriate colors: blue, red, green, yellow, purple, pink, orange, cyan
+- Some tabs may remain ungrouped if they don't fit any category
+
+${userPrompt ? `User guidance: ${userPrompt}` : ""}`;
+
+    const userMessage = tabs
+      .map((tab, idx) => `[${idx}] ${tab.title}\n    URL: ${tab.url}`)
+      .join("\n\n");
+
+    return { system: systemPrompt, user: userMessage };
+  }
+
+  /**
+   * Build prompt for tab cleaning (shared logic)
+   */
+  protected buildCleanPrompt(
+    tabs: TabData[],
+    userPrompt: string,
+  ): {
+    system: string;
+    user: string;
+  } {
+    const systemPrompt = `You are a tab cleanup assistant. Analyze the provided browser tabs and identify which ones should be closed based on the user's request.
+
+Rules:
+- Be conservative - only suggest closing tabs that clearly match the user's criteria
+- Consider tab titles, URLs, and domains
+- Provide clear reasoning for your selection
+- If no tabs match, return an empty array
+
+User request: ${userPrompt}`;
+
+    const userMessage = tabs
+      .map((tab, idx) => `[${idx}] ${tab.title}\n    URL: ${tab.url}`)
+      .join("\n\n");
+
+    return { system: systemPrompt, user: userMessage };
+  }
+}
+```
+
+### SimpleAISDKProvider - Structured Outputs
+
+The `SimpleAISDKProvider` extends `LLMProvider` and uses **AI SDK's structured outputs** with Zod schemas for type-safe, validated responses. This eliminates JSON parsing errors and ensures consistent response format across all LLM providers.
+
+```typescript
+// src/lib/providers/simple-ai-sdk-provider.ts
+import { generateObject, generateText } from "ai";
+import { z } from "zod";
+import { LLMProvider } from "../llm-provider";
+import type { CleanResult, GroupingResult, TabData } from "../types";
+import { LLM_CONFIG } from "../utils";
+
+/**
+ * Zod schema for grouping result - ensures type-safe validation
+ */
+const groupingResultSchema = z.object({
+  groups: z
+    .array(
+      z.object({
+        name: z.string().describe("Name of the group"),
+        color: z.enum([
+          "blue",
+          "red",
+          "green",
+          "yellow",
+          "purple",
+          "pink",
+          "orange",
+          "cyan",
+        ]),
+        tabIndices: z.array(z.number()).describe("Array of tab indices"),
+        reasoning: z.string().optional(),
+      }),
+    )
+    .describe("Array of tab groups (3-7 recommended)"),
+  ungrouped: z.array(z.number()).describe("Tabs that don't fit any group"),
+});
+
+export abstract class SimpleAISDKProvider extends LLMProvider {
+  protected abstract getModel(): any;
+
+  /**
+   * Categorize tabs using structured output (generateObject)
    */
   async categorize(
     tabs: TabData[],
@@ -104,21 +219,19 @@ export abstract class LLMProvider {
   ): Promise<GroupingResult> {
     const prompt = this.buildPrompt(tabs, userPrompt);
 
-    const { text } = await generateText({
+    const { object } = await generateObject({
       model: this.getModel(),
+      schema: groupingResultSchema, // Zod handles validation automatically
       system: prompt.system,
       prompt: prompt.user,
-      temperature: 0.3,
-      maxTokens: 4096,
-      maxRetries: 3,
+      temperature: LLM_CONFIG.TEMPERATURE,
+      maxTokens: LLM_CONFIG.CATEGORIZE_MAX_TOKENS,
+      maxRetries: LLM_CONFIG.MAX_RETRIES,
     });
 
-    return this.parseResponse(text);
+    return object as GroupingResult;
   }
 
-  /**
-   * Test provider connection
-   */
   async testConnection(): Promise<boolean> {
     try {
       await generateText({
@@ -131,100 +244,47 @@ export abstract class LLMProvider {
       return false;
     }
   }
-
-  /**
-   * Build standardized prompt (shared logic)
-   */
-  protected buildPrompt(
-    tabs: TabData[],
-    userPrompt?: string,
-  ): {
-    system: string;
-    user: string;
-  } {
-    const systemPrompt = `You are a tab organization assistant. Analyze browser tabs and group them logically.
-
-Rules:
-- Create 3-7 groups maximum
-- Group by: topic, project, domain similarity, purpose
-- Name groups clearly (e.g., "Development", "Research: AI", "Shopping")
-- Assign colors: blue, red, green, yellow, purple, pink, orange, cyan
-- Some tabs may remain ungrouped
-
-${userPrompt ? `User guidance: ${userPrompt}` : ""}
-
-Return JSON only:
-{
-  "groups": [
-    {
-      "name": "Group Name",
-      "color": "blue",
-      "tabIndices": [0, 2, 5],
-      "reasoning": "Brief explanation"
-    }
-  ],
-  "ungrouped": [1, 3]
-}`;
-
-    const userMessage = tabs
-      .map((tab, idx) => `[${idx}] ${tab.title}\n    URL: ${tab.url}`)
-      .join("\n\n");
-
-    return { system: systemPrompt, user: userMessage };
-  }
-
-  /**
-   * Parse and validate LLM response
-   */
-  protected parseResponse(response: string): GroupingResult {
-    const data = JSON.parse(response) as GroupingResult;
-    this.validateGrouping(data);
-    return data;
-  }
-
-  protected validateGrouping(data: GroupingResult): void {
-    if (!data.groups || !Array.isArray(data.groups)) {
-      throw new Error("Invalid response: missing groups array");
-    }
-
-    for (const group of data.groups) {
-      if (!group.name || !group.color || !Array.isArray(group.tabIndices)) {
-        throw new Error("Invalid group structure");
-      }
-    }
-
-    if (!Array.isArray(data.ungrouped)) {
-      throw new Error("Invalid response: missing ungrouped array");
-    }
-  }
 }
 ```
+
+**Key Benefits:**
+
+- **No JSON Parsing:** AI SDK handles structure via Zod schema
+- **Type Safety:** Automatic validation against TypeScript types
+- **Error Prevention:** Eliminates "unexpected end of data" and malformed JSON errors
+- **Provider Agnostic:** Works consistently across Claude, OpenAI, Gemini, Cerebras, Bedrock
+- **Cleaner Prompts:** No need for JSON format instructions in system prompts
+
+````
 
 ### Concrete Provider Examples
 
 #### Bedrock Provider
 
+Bedrock extends `SimpleAISDKProvider` to inherit structured output functionality:
+
 ```typescript
 // src/lib/providers/bedrock-provider.ts
-import { bedrock } from "@ai-sdk/amazon-bedrock";
-import { LanguageModel } from "ai";
-import { LLMProvider } from "../llm-provider";
-import { BedrockConfig, ConfigSchema } from "../types";
+import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
+import type { BedrockConfig, ConfigSchema } from "../types";
+import { SimpleAISDKProvider } from "./simple-ai-sdk-provider";
 
-export class BedrockProvider extends LLMProvider {
-  private config: BedrockConfig;
+export class BedrockProvider extends SimpleAISDKProvider {
+  private _config: BedrockConfig;
 
   constructor(config: BedrockConfig) {
     super();
-    this.config = config;
+    this._config = config;
   }
 
-  protected getModel(): LanguageModel {
-    return bedrock({
-      region: this.config.awsRegion,
-      accessKeyId: this.config.awsAccessKeyId,
-      secretAccessKey: this.config.awsSecretAccessKey,
-    })(this.config.modelId);
+  protected getModel() {
+    const bedrock = createAmazonBedrock({
+      region: this._config.awsRegion,
+      accessKeyId: this._config.awsAccessKeyId,
+      secretAccessKey: this._config.awsSecretAccessKey,
+      sessionToken: this._config.awsSessionToken,
+    });
+    return bedrock(this._config.modelId);
   }
 
   getConfigSchema(): ConfigSchema {
@@ -256,7 +316,7 @@ export class BedrockProvider extends LLMProvider {
     };
   }
 }
-```
+````
 
 #### Claude Provider
 
@@ -622,6 +682,21 @@ Tab Groups (local)
 - Model support: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
 - API key authentication
 
+**Google Gemini**
+
+- Integration via `@ai-sdk/google-generative-ai`
+- Model support: gemini-2.5-flash (default), gemini-2.5-pro, gemini-2.0-flash, gemini-1.5-pro, gemini-1.5-flash, gemini-1.5-flash-8b
+- API key authentication (free tier available from Google AI Studio)
+- Best balance of speed and quality with gemini-2.5-flash
+
+**Cerebras**
+
+- Integration via `@ai-sdk/cerebras`
+- Model support: llama-3.3-70b (default), llama3.1-8b, gpt-oss-120b, qwen-3-235b models, qwen-3-coder-480b
+- API key authentication (free tier available from Cerebras Cloud)
+- Fast inference with 8192 token context limit on free tier
+- May require caution with large numbers of tabs
+
 ✅ **User Interface**
 
 **Popup (popup.html/ts/css)**
@@ -632,7 +707,7 @@ Tab Groups (local)
 
 **Options Page (options.html/ts/css)**
 
-- Provider selection dropdown (Claude/Bedrock/OpenAI)
+- Provider selection dropdown (Claude/Bedrock/OpenAI/Gemini/Cerebras)
 - Dynamic configuration forms generated from provider schemas
 - "Test Connection" functionality validates credentials before use
 - "Save Settings" persists configuration to browser storage
@@ -756,7 +831,6 @@ Tab Groups (local)
 
 - [Vercel AI SDK](https://ai-sdk.dev/docs/foundations/overview)
 - [Vercel AI SDK - LLMs Overview](https://ai-sdk.dev/llms.txt)
-- [AWS Bedrock API Keys](https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started-api-keys.html)
-- [AWS Bedrock Token Generator](https://github.com/aws/aws-bedrock-token-generator-python)
+- [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
 - [Firefox Tab Groups API](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/group)
 - [MDN WebExtensions Examples](https://github.com/mdn/webextensions-examples)

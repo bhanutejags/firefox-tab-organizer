@@ -4,9 +4,7 @@
 
 import type { LLMProvider } from "./llm-provider";
 import { BedrockProvider } from "./providers/bedrock-provider";
-import { CerebrasProvider } from "./providers/cerebras-provider";
 import { ClaudeProvider } from "./providers/claude-provider";
-import { GeminiProvider } from "./providers/gemini-provider";
 import { OpenAIProvider } from "./providers/openai-provider";
 import type { ProviderConfig, ProviderType } from "./types";
 
@@ -38,18 +36,6 @@ export const PROVIDERS: Record<ProviderType, ProviderInfo> = {
     class: OpenAIProvider,
     description: "GPT-4 and GPT-3.5",
     icon: "🔮",
-  },
-  gemini: {
-    name: "Google Gemini",
-    class: GeminiProvider,
-    description: "Google's Gemini models",
-    icon: "🔷",
-  },
-  cerebras: {
-    name: "Cerebras",
-    class: CerebrasProvider,
-    description: "Fast inference with Cerebras",
-    icon: "⚡",
   },
 };
 
