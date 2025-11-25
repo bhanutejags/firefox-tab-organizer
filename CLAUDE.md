@@ -66,38 +66,16 @@ web-ext-artifacts/             # Signed extensions (gitignored)
 2. `src/popup/popup.ts` → `dist/popup.js` (popup UI)
 3. `src/options/options.ts` → `dist/options.js` (settings page)
 
-### Bun Build Configuration
+### Build Process
 
-```typescript
-await Bun.build({
-  entrypoints: [entry],
-  outdir: "dist",
-  target: "browser", // Browser environment (no Node.js APIs)
-  minify: false, // Keep readable for debugging
-  sourcemap: "external", // Separate .map files
-  splitting: false, // No code splitting (Firefox limitation)
-});
-```
+See `build.ts` for implementation details. Key points:
 
-### Asset Copying
-
-After bundling TypeScript, the build process copies:
-
-- `manifest.json` → `dist/`
-- HTML/CSS files → `dist/`
-- Icons → `dist/icons/`
+- Bundles TypeScript to browser-compatible JavaScript
+- Copies static assets (manifest, HTML/CSS, icons) to `dist/`
 
 ## TypeScript Configuration
 
-**Key settings:**
-
-- `target`: ES2022 (modern JavaScript)
-- `module`: ESNext
-- `moduleResolution`: bundler (Bun-specific)
-- `strict`: true (full type safety)
-- `noEmit`: true (Bun handles compilation)
-
-**Why noEmit?** TypeScript is used for type checking only. Bun's bundler compiles directly from `.ts` files without intermediate `.js` output.
+Strict mode enabled for full type safety. Bun handles compilation directly from `.ts` files (see `tsconfig.json`).
 
 ## LLM Provider Architecture
 
@@ -218,20 +196,6 @@ Release workflow (`release.yml`) automatically signs on every tag push:
 
 This pipes credentials from 1Password directly to `gh secret set` (never displayed in terminal).
 
-### Signing Workflow
-
-```
-bun run sign
-  ↓
-web-ext uploads to Mozilla
-  ↓
-Automated review (~5 minutes)
-  ↓
-Signed .xpi downloaded to web-ext-artifacts/
-  ↓
-Ready for distribution
-```
-
 ## CI/CD
 
 ### GitHub Actions Workflows
@@ -259,51 +223,14 @@ Ready for distribution
 
 Uses `oven-sh/setup-bun@v1` action for fast, cached Bun installation.
 
-## Dependencies
-
-### Production
-
-- `ai` - Vercel AI SDK core
-- `@ai-sdk/anthropic` - Claude provider
-- `@ai-sdk/amazon-bedrock` - AWS Bedrock provider
-- `@ai-sdk/openai` - OpenAI provider
-- `webextension-polyfill` - Typed browser APIs
-
-### Development
-
-- `@biomejs/biome` - Fast linter & formatter (Rust-based)
-- `typescript` - Type checking
-- `@types/webextension-polyfill` - Type definitions
-- `web-ext` - Firefox extension tooling
-
 ## Important Gotchas
 
-### Module Resolution
+### Code Quality
 
-Use `import type` for type-only imports to optimize bundle size:
-
-```typescript
-import type { TabData } from "./types"; // ✅ Good (type-only)
-import { TabData } from "./types"; // ⚠️ Includes runtime code
-```
-
-### Browser Compatibility
-
-- **Target:** Firefox 109+ (Tab Groups API requirement)
-- **No Node.js APIs** in browser context
-- Use `webextension-polyfill` for consistent API across browsers
-
-### Bun Build Caveats
-
-- Code splitting disabled (Firefox doesn't handle it well in extensions)
-- Always use `target: "browser"`
-- Watch mode: Use `bun --watch build.ts` (not built into build script)
-
-### TypeScript Strict Mode
-
-- Use type guards, avoid `any` without `biome-ignore` comment
-- Non-null assertions (`!`) require proper filtering first
-- Optional chaining preferred over type assertions
+- Use `import type` for type-only imports to optimize bundle size
+- TypeScript strict mode - use type guards, avoid `any`
+- Target Firefox 109+ (Tab Groups API requirement)
+- No Node.js APIs in browser context
 
 ### Version Sync
 
@@ -314,32 +241,9 @@ import { TabData } from "./types"; // ⚠️ Includes runtime code
 
 ## Development Workflow
 
-### Adding Features
-
-1. Update TODO.md with task
-2. Follow TypeScript strict patterns
-3. Run type-check + lint before commit
-4. Update docs/DESIGN.md if architecture changes
-5. Test locally with `bun run start`
-
-### Debugging
-
-```bash
-# Run with browser console open
-bun run start
-
-# Check build output
-ls -lh dist/
-
-# View signed extensions
-ls -lh web-ext-artifacts/
-```
-
-### Updating Dependencies
-
-```bash
-bun update
-```
+1. Run type-check + lint before commit
+2. Update docs/DESIGN.md if architecture changes
+3. Test locally with `bun run start`
 
 ## Security Practices
 

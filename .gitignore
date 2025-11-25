@@ -48,3 +48,6 @@ coverage/
 
 # Misc
 .cache/
+
+# Documentation - unimplemented features
+docs/IMPLEMENTATION_PLAN_DUPLICATE_TABS.md

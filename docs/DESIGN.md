@@ -77,477 +77,41 @@ Success notification
 
 ## LLM Provider Architecture
 
-### Abstract Base Class
+### Abstract Base Class (`LLMProvider`)
 
-```typescript
-// src/lib/llm-provider.ts
-import type {
-  CleanResult,
-  ConfigSchema,
-  GroupingResult,
-  TabData,
-} from "./types";
+Defines the core interface that all providers must implement:
 
-export abstract class LLMProvider {
-  /**
-   * Categorize tabs into groups using LLM
-   */
-  abstract categorize(
-    tabs: TabData[],
-    userPrompt?: string,
-  ): Promise<GroupingResult>;
+- `categorize(tabs, userPrompt?)` - Main tab organization logic
+- `cleanTabs(tabs, userPrompt)` - Identify tabs to close
+- `testConnection()` - Credential validation
+- `getConfigSchema()` - Dynamic UI generation for options page
+- `buildPrompt()` / `buildCleanPrompt()` - Shared prompt construction logic
 
-  /**
-   * Identify tabs to close based on user prompt using LLM
-   */
-  abstract cleanTabs(tabs: TabData[], userPrompt: string): Promise<CleanResult>;
+### Structured Outputs with Zod
 
-  /**
-   * Test if credentials are valid
-   */
-  abstract testConnection(): Promise<boolean>;
+All providers use **AI SDK's `generateObject()`** with Zod schemas for type-safe validation:
 
-  /**
-   * Get configuration schema for UI generation
-   */
-  abstract getConfigSchema(): ConfigSchema;
+- **No JSON parsing** - AI SDK handles structure via Zod schema
+- **Type safety** - Automatic validation against TypeScript types
+- **Error prevention** - Eliminates malformed JSON errors
+- **Provider agnostic** - Works consistently across all LLM providers
+- **Cleaner prompts** - No JSON format instructions needed
 
-  /**
-   * Build standardized prompt for tab organization (shared logic)
-   */
-  protected buildPrompt(
-    tabs: TabData[],
-    userPrompt?: string,
-  ): {
-    system: string;
-    user: string;
-  } {
-    const systemPrompt = `You are a tab organization assistant. Analyze the provided browser tabs and group them into logical categories.
+`SimpleAISDKProvider` extends `LLMProvider` to provide this structured output functionality. Most providers inherit from this base implementation.
 
-Rules:
-- Create 3-7 groups maximum
-- Group by: topic, project, domain similarity, or purpose
-- Name groups clearly (e.g., "Development", "Research: AI", "Shopping")
-- Assign appropriate colors: blue, red, green, yellow, purple, pink, orange, cyan
-- Some tabs may remain ungrouped if they don't fit any category
+### Provider Implementations
 
-${userPrompt ? `User guidance: ${userPrompt}` : ""}`;
+See source files in `src/lib/providers/` for implementation details:
 
-    const userMessage = tabs
-      .map((tab, idx) => `[${idx}] ${tab.title}\n    URL: ${tab.url}`)
-      .join("\n\n");
+- **Bedrock** (`bedrock-provider.ts`) - AWS credentials with SigV4 signing
+- **Claude** (`claude-provider.ts`) - Direct Anthropic API
+- **OpenAI** (`openai-provider.ts`) - OpenAI API key authentication
+- **Gemini** (`gemini-provider.ts`) - Google AI Studio API key
+- **Cerebras** (`cerebras-provider.ts`) - Cerebras Cloud API key
 
-    return { system: systemPrompt, user: userMessage };
-  }
+### Factory Pattern
 
-  /**
-   * Build prompt for tab cleaning (shared logic)
-   */
-  protected buildCleanPrompt(
-    tabs: TabData[],
-    userPrompt: string,
-  ): {
-    system: string;
-    user: string;
-  } {
-    const systemPrompt = `You are a tab cleanup assistant. Analyze the provided browser tabs and identify which ones should be closed based on the user's request.
-
-Rules:
-- Be conservative - only suggest closing tabs that clearly match the user's criteria
-- Consider tab titles, URLs, and domains
-- Provide clear reasoning for your selection
-- If no tabs match, return an empty array
-
-User request: ${userPrompt}`;
-
-    const userMessage = tabs
-      .map((tab, idx) => `[${idx}] ${tab.title}\n    URL: ${tab.url}`)
-      .join("\n\n");
-
-    return { system: systemPrompt, user: userMessage };
-  }
-}
-```
-
-### SimpleAISDKProvider - Structured Outputs
-
-The `SimpleAISDKProvider` extends `LLMProvider` and uses **AI SDK's structured outputs** with Zod schemas for type-safe, validated responses. This eliminates JSON parsing errors and ensures consistent response format across all LLM providers.
-
-```typescript
-// src/lib/providers/simple-ai-sdk-provider.ts
-import { generateObject, generateText } from "ai";
-import { z } from "zod";
-import { LLMProvider } from "../llm-provider";
-import type { CleanResult, GroupingResult, TabData } from "../types";
-import { LLM_CONFIG } from "../utils";
-
-/**
- * Zod schema for grouping result - ensures type-safe validation
- */
-const groupingResultSchema = z.object({
-  groups: z
-    .array(
-      z.object({
-        name: z.string().describe("Name of the group"),
-        color: z.enum([
-          "blue",
-          "red",
-          "green",
-          "yellow",
-          "purple",
-          "pink",
-          "orange",
-          "cyan",
-        ]),
-        tabIndices: z.array(z.number()).describe("Array of tab indices"),
-        reasoning: z.string().optional(),
-      }),
-    )
-    .describe("Array of tab groups (3-7 recommended)"),
-  ungrouped: z.array(z.number()).describe("Tabs that don't fit any group"),
-});
-
-export abstract class SimpleAISDKProvider extends LLMProvider {
-  protected abstract getModel(): any;
-
-  /**
-   * Categorize tabs using structured output (generateObject)
-   */
-  async categorize(
-    tabs: TabData[],
-    userPrompt?: string,
-  ): Promise<GroupingResult> {
-    const prompt = this.buildPrompt(tabs, userPrompt);
-
-    const { object } = await generateObject({
-      model: this.getModel(),
-      schema: groupingResultSchema, // Zod handles validation automatically
-      system: prompt.system,
-      prompt: prompt.user,
-      temperature: LLM_CONFIG.TEMPERATURE,
-      maxTokens: LLM_CONFIG.CATEGORIZE_MAX_TOKENS,
-      maxRetries: LLM_CONFIG.MAX_RETRIES,
-    });
-
-    return object as GroupingResult;
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      await generateText({
-        model: this.getModel(),
-        prompt: "Test",
-        maxTokens: 10,
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-```
-
-**Key Benefits:**
-
-- **No JSON Parsing:** AI SDK handles structure via Zod schema
-- **Type Safety:** Automatic validation against TypeScript types
-- **Error Prevention:** Eliminates "unexpected end of data" and malformed JSON errors
-- **Provider Agnostic:** Works consistently across Claude, OpenAI, Gemini, Cerebras, Bedrock
-- **Cleaner Prompts:** No need for JSON format instructions in system prompts
-
-````
-
-### Concrete Provider Examples
-
-#### Bedrock Provider
-
-Bedrock extends `SimpleAISDKProvider` to inherit structured output functionality:
-
-```typescript
-// src/lib/providers/bedrock-provider.ts
-import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import type { BedrockConfig, ConfigSchema } from "../types";
-import { SimpleAISDKProvider } from "./simple-ai-sdk-provider";
-
-export class BedrockProvider extends SimpleAISDKProvider {
-  private _config: BedrockConfig;
-
-  constructor(config: BedrockConfig) {
-    super();
-    this._config = config;
-  }
-
-  protected getModel() {
-    const bedrock = createAmazonBedrock({
-      region: this._config.awsRegion,
-      accessKeyId: this._config.awsAccessKeyId,
-      secretAccessKey: this._config.awsSecretAccessKey,
-      sessionToken: this._config.awsSessionToken,
-    });
-    return bedrock(this._config.modelId);
-  }
-
-  getConfigSchema(): ConfigSchema {
-    return {
-      awsAccessKeyId: {
-        type: "string",
-        label: "AWS Access Key ID",
-        required: true,
-        placeholder: "AKIA...",
-      },
-      awsSecretAccessKey: {
-        type: "password",
-        label: "AWS Secret Access Key",
-        required: true,
-      },
-      awsRegion: {
-        type: "select",
-        label: "AWS Region",
-        required: true,
-        default: "us-east-1",
-        options: ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
-      },
-      modelId: {
-        type: "string",
-        label: "Model ID",
-        required: true,
-        default: "anthropic.claude-3-5-sonnet-20241022-v2:0",
-      },
-    };
-  }
-}
-````
-
-#### Claude Provider
-
-```typescript
-// src/lib/providers/claude-provider.ts
-import { anthropic } from "@ai-sdk/anthropic";
-import { LanguageModel } from "ai";
-import { LLMProvider } from "../llm-provider";
-import { ClaudeConfig, ConfigSchema } from "../types";
-
-export class ClaudeProvider extends LLMProvider {
-  private config: ClaudeConfig;
-
-  constructor(config: ClaudeConfig) {
-    super();
-    this.config = config;
-  }
-
-  protected getModel(): LanguageModel {
-    return anthropic({
-      apiKey: this.config.claudeApiKey,
-    })(this.config.modelId);
-  }
-
-  getConfigSchema(): ConfigSchema {
-    return {
-      claudeApiKey: {
-        type: "password",
-        label: "Claude API Key",
-        required: true,
-        placeholder: "sk-ant-...",
-      },
-      modelId: {
-        type: "select",
-        label: "Model",
-        required: true,
-        default: "claude-3-5-sonnet-20241022",
-        options: [
-          "claude-3-5-sonnet-20241022",
-          "claude-3-opus-20240229",
-          "claude-3-haiku-20240307",
-        ],
-      },
-    };
-  }
-}
-```
-
-#### OpenAI Provider
-
-```typescript
-// src/lib/providers/openai-provider.ts
-import { openai } from "@ai-sdk/openai";
-import { LanguageModel } from "ai";
-import { LLMProvider } from "../llm-provider";
-import { OpenAIConfig, ConfigSchema } from "../types";
-
-export class OpenAIProvider extends LLMProvider {
-  private config: OpenAIConfig;
-
-  constructor(config: OpenAIConfig) {
-    super();
-    this.config = config;
-  }
-
-  protected getModel(): LanguageModel {
-    return openai({
-      apiKey: this.config.openaiApiKey,
-    })(this.config.modelId);
-  }
-
-  getConfigSchema(): ConfigSchema {
-    return {
-      openaiApiKey: {
-        type: "password",
-        label: "OpenAI API Key",
-        required: true,
-        placeholder: "sk-...",
-      },
-      modelId: {
-        type: "select",
-        label: "Model",
-        required: true,
-        default: "gpt-4o-mini",
-        options: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-      },
-    };
-  }
-}
-```
-
-### Provider Registry
-
-```typescript
-// src/lib/provider-registry.ts
-import { LLMProvider } from "./llm-provider";
-import { ProviderType, ProviderConfig } from "./types";
-import { BedrockProvider } from "./providers/bedrock-provider";
-import { ClaudeProvider } from "./providers/claude-provider";
-import { OpenAIProvider } from "./providers/openai-provider";
-
-interface ProviderInfo {
-  name: string;
-  class: new (config: any) => LLMProvider;
-  description: string;
-  icon: string;
-}
-
-export const PROVIDERS: Record<ProviderType, ProviderInfo> = {
-  bedrock: {
-    name: "AWS Bedrock",
-    class: BedrockProvider,
-    description: "Claude via AWS Bedrock",
-    icon: "☁️",
-  },
-  claude: {
-    name: "Anthropic Claude",
-    class: ClaudeProvider,
-    description: "Direct Claude API",
-    icon: "🤖",
-  },
-  openai: {
-    name: "OpenAI",
-    class: OpenAIProvider,
-    description: "GPT-4 and GPT-3.5",
-    icon: "🔮",
-  },
-};
-
-export function createProvider(
-  type: ProviderType,
-  config: ProviderConfig,
-): LLMProvider {
-  const provider = PROVIDERS[type];
-  if (!provider) {
-    throw new Error(`Unknown provider: ${type}`);
-  }
-  return new provider.class(config);
-}
-```
-
----
-
-## Key Type Definitions
-
-```typescript
-// src/lib/types.ts
-
-export interface TabData {
-  id: number;
-  index: number;
-  title: string;
-  url: string;
-  favIconUrl?: string;
-  active: boolean;
-  pinned: boolean;
-  windowId: number;
-  groupId: number;
-}
-
-export type TabGroupColor =
-  | "blue"
-  | "red"
-  | "green"
-  | "yellow"
-  | "purple"
-  | "pink"
-  | "orange"
-  | "cyan";
-
-export interface TabGroup {
-  name: string;
-  color: TabGroupColor;
-  tabIndices: number[];
-  reasoning?: string;
-}
-
-export interface GroupingResult {
-  groups: TabGroup[];
-  ungrouped: number[];
-}
-
-// Provider Configurations
-export interface BedrockConfig {
-  awsAccessKeyId: string;
-  awsSecretAccessKey: string;
-  awsSessionToken?: string;
-  awsRegion: string;
-  modelId: string;
-}
-
-export interface ClaudeConfig {
-  claudeApiKey: string;
-  modelId: string;
-}
-
-export interface OpenAIConfig {
-  openaiApiKey: string;
-  modelId: string;
-}
-
-export type ProviderConfig = BedrockConfig | ClaudeConfig | OpenAIConfig;
-
-export type ProviderType = "bedrock" | "claude" | "openai";
-
-// Extension Storage
-export interface ExtensionStorage {
-  selectedProvider: ProviderType;
-  providerConfigs: {
-    bedrock?: BedrockConfig;
-    claude?: ClaudeConfig;
-    openai?: OpenAIConfig;
-  };
-  preferences: {
-    maxGroups: number;
-    autoCollapse: boolean;
-  };
-}
-
-// Config Schema for Dynamic UI
-export interface ConfigField {
-  type: "string" | "password" | "select" | "number";
-  label: string;
-  required: boolean;
-  default?: string | number;
-  options?: string[];
-  placeholder?: string;
-}
-
-export type ConfigSchema = Record<string, ConfigField>;
-```
+`createProvider(type, config)` in `provider-registry.ts` provides runtime provider instantiation based on user configuration. Registry maps provider types to implementation classes.
 
 ---
 
@@ -652,9 +216,8 @@ Tab Groups (local)
 ✅ **Tab Organization Pipeline**
 
 - Tab capture and filtering (excludes pinned tabs and special URLs: `about:*`, `moz-extension:*`)
-- LLM categorization with structured JSON response parsing
+- LLM categorization with Zod schema validation for type-safe responses
 - Firefox Tab Groups API integration (create groups with names and colors)
-- Error handling with regex-based JSON extraction (handles markdown code blocks)
 - Dynamic provider configuration UI with schema-driven form generation
 - Settings persistence using `browser.storage.local` (encrypted by Firefox)
 
@@ -740,10 +303,9 @@ Tab Groups (local)
 3. Background script queries current window tabs via browser.tabs.query()
 4. Filter tabs: exclude pinned, about:*, moz-extension:* URLs
 5. Send tab data (title, URL, index) to configured LLM provider
-6. LLM analyzes and returns JSON categorization (3-7 groups recommended)
-7. Parse and validate JSON response (handles markdown code blocks)
-8. Create Firefox Tab Groups using browser.tabs.group() and browser.tabGroups.update()
-9. Display success notification with group count
+6. LLM returns categorization via AI SDK's structured output (Zod validation)
+7. Create Firefox Tab Groups using browser.tabs.group() and browser.tabGroups.update()
+8. Display success notification with group count
 ```
 
 ### Provider Flexibility
